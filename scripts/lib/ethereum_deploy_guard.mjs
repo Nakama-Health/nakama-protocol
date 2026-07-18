@@ -15,7 +15,7 @@ function required(env, name) {
   return value;
 }
 
-function validateRpcUrl(value) {
+export function validateMainnetRpcUrl(value) {
   let url;
   try {
     url = new URL(value);
@@ -24,6 +24,9 @@ function validateRpcUrl(value) {
   }
   if (url.protocol !== "https:") {
     throw new Error("Ethereum mainnet RPC must use https");
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error("Ethereum mainnet RPC URL must not contain embedded credentials, query parameters, or fragments");
   }
   const hostname = url.hostname.toLowerCase();
   if (
@@ -44,7 +47,7 @@ export function validateDeploymentEnvironment(env = process.env) {
     throw new Error("Mainnet deployment confirmation phrase does not match");
   }
 
-  const rpcUrl = validateRpcUrl(required(env, "ETHEREUM_MAINNET_RPC_URL"));
+  const rpcUrl = validateMainnetRpcUrl(required(env, "ETHEREUM_MAINNET_RPC_URL"));
   const privateKey = required(env, "ETHEREUM_MAINNET_PRIVATE_KEY");
   if (!/^0x[0-9a-fA-F]{64}$/.test(privateKey)) {
     throw new Error("ETHEREUM_MAINNET_PRIVATE_KEY must be a 32-byte hex key");
@@ -109,11 +112,14 @@ export function validateSourceCheckout(config, checkout) {
 }
 
 export function validateReleaseManifest(config, manifest, artifacts) {
-  if (manifest?.schemaVersion !== 1 || manifest?.status !== "approved-for-mainnet") {
+  if (manifest?.schemaVersion !== 2 || manifest?.status !== "approved-for-mainnet") {
     throw new Error("A reviewed deployments/ethereum-mainnet.release.json with approved-for-mainnet status is required");
   }
   if (manifest.sourceCommit !== config.sourceCommit) {
     throw new Error("Release manifest sourceCommit does not match the deployment source commit");
+  }
+  if (getAddress(manifest.expectedDeployer) !== config.expectedDeployer) {
+    throw new Error("Release manifest expectedDeployer does not match the configured deployer");
   }
   if (manifest.auditReportSha256 !== config.auditReportSha256) {
     throw new Error("Release manifest audit digest does not match NAKAMA_MAINNET_AUDIT_REPORT_SHA256");
@@ -121,8 +127,11 @@ export function validateReleaseManifest(config, manifest, artifacts) {
   if (manifest.releaseApprovalSha256 !== config.releaseApprovalSha256) {
     throw new Error("Release approval digest does not match NAKAMA_MAINNET_RELEASE_APPROVAL_SHA256");
   }
-  if (manifest.protocolRuntimeBytecodeHash !== artifacts.protocolRuntimeBytecodeHash) {
-    throw new Error("Release manifest runtime bytecode hash does not match the compiled artifact");
+  if (manifest.protocolRuntimeBytecodeTemplateHash !== artifacts.protocolRuntimeBytecodeTemplateHash) {
+    throw new Error("Release manifest runtime bytecode template hash does not match the compiled artifact");
+  }
+  if (manifest.protocolCreationBytecodeHash !== artifacts.protocolCreationBytecodeHash) {
+    throw new Error("Release manifest creation bytecode hash does not match the compiled artifact");
   }
   if (manifest.protocolArtifactSha256 !== artifacts.protocolArtifactSha256) {
     throw new Error("Release manifest protocol artifact digest does not match the generated artifact");

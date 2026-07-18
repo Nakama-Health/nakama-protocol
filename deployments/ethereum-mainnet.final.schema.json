@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://nakama.health/schemas/ethereum-mainnet-deployment-v1.json",
+  "$id": "https://nakama.health/schemas/ethereum-mainnet-deployment-v2.json",
   "title": "Nakama Ethereum mainnet published deployment manifest",
   "type": "object",
   "additionalProperties": false,
@@ -14,9 +14,14 @@
     "deployer",
     "deploymentTransaction",
     "deploymentBlock",
+    "deploymentBlockHash",
     "confirmations",
     "sourceCommit",
+    "creationBytecodeHash",
     "runtimeBytecodeHash",
+    "runtimeBytecodeTemplateHash",
+    "runtimeBytecodeBytes",
+    "immutableReferences",
     "abiArtifact",
     "abiSha256",
     "verified",
@@ -26,10 +31,14 @@
     "protocolArtifactSha256",
     "verificationProvider",
     "verificationUrl",
+    "sourceVerifiedAt",
+    "sourcifyMatchId",
+    "creationMatch",
+    "runtimeMatch",
     "verificationEvidenceSha256"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": { "const": 2 },
     "status": { "const": "deployed" },
     "chainId": { "const": 1 },
     "caip2": { "const": "eip155:1" },
@@ -38,9 +47,25 @@
     "deployer": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
     "deploymentTransaction": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
     "deploymentBlock": { "type": "integer", "minimum": 1 },
+    "deploymentBlockHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
     "confirmations": { "type": "integer", "minimum": 12 },
     "sourceCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "creationBytecodeHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
     "runtimeBytecodeHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+    "runtimeBytecodeTemplateHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+    "runtimeBytecodeBytes": { "type": "integer", "minimum": 1, "maximum": 24576 },
+    "immutableReferences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["start", "length"],
+        "properties": {
+          "start": { "type": "integer", "minimum": 0 },
+          "length": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
     "abiArtifact": { "const": "contracts/ethereum/NakamaCoverageProtocol.abi.json" },
     "abiSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "verified": { "const": true },
@@ -48,8 +73,16 @@
     "auditReportSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "releaseApprovalSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "protocolArtifactSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "verificationProvider": { "type": "string", "minLength": 1 },
-    "verificationUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "verificationProvider": { "const": "sourcify-v2" },
+    "verificationUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://sourcify\\.dev/server/v2/contract/1/0x[0-9a-fA-F]{40}$"
+    },
+    "sourceVerifiedAt": { "type": "string", "format": "date-time" },
+    "sourcifyMatchId": { "type": "string", "minLength": 1 },
+    "creationMatch": { "const": "exact_match" },
+    "runtimeMatch": { "const": "exact_match" },
     "verificationEvidenceSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
   }
 }

@@ -110,7 +110,7 @@ async function depositAndOpenClaim(
   await token.connect(contributor).approve(vaultAddress, depositAmount);
   await protocol
     .connect(contributor)
-    .depositReserveCapital(lineId, depositAmount, commitment("capital terms"));
+    .depositReserveCapital(lineId, depositAmount, 0, commitment("capital terms"));
 
   const nullifier = commitment(`nullifier-${depositAmount}-${requestedAmount}`);
   const claimId = await protocol.deriveClaimId(planId, claimant.address, nullifier);
@@ -137,6 +137,87 @@ async function reachInitialDecision(
   await fixture.protocol.connect(fixture.attesterOne).attestClaim(claimId, approve, amount, decision);
   await fixture.protocol.connect(fixture.attesterTwo).attestClaim(claimId, approve, amount, decision);
   return decision;
+}
+
+async function createBackstopLine(
+  fixture: Awaited<ReturnType<typeof deployBackstopFixture>>,
+  label: string,
+  { newPlan = false, capitalCap = 1_000_000n } = {},
+) {
+  let planId = fixture.planId;
+  if (newPlan) {
+    const planSalt = commitment(`${label}-plan`);
+    planId = await fixture.protocol.derivePlanId(fixture.domainId, planSalt);
+    await fixture.protocol.connect(fixture.domainController).createHealthPlan(
+      fixture.domainId,
+      planSalt,
+      fixture.planController.address,
+      commitment(`${label}-plan-metadata`),
+      [fixture.attesterOne.address, fixture.attesterTwo.address, fixture.attesterThree.address],
+    );
+  }
+  const seriesSalt = commitment(`${label}-series`);
+  const seriesId = await fixture.protocol.deriveSeriesId(planId, seriesSalt);
+  await fixture.protocol.connect(fixture.planController).createPolicySeries(
+    planId,
+    seriesSalt,
+    await fixture.token.getAddress(),
+    3_600,
+    commitment(`${label}-series-terms`),
+  );
+  const lineSalt = commitment(`${label}-line`);
+  const lineId = await fixture.protocol.deriveFundingLineId(planId, lineSalt);
+  await fixture.protocol.connect(fixture.planController).openFundingLine(
+    planId,
+    seriesId,
+    lineSalt,
+    2,
+    capitalCap,
+    commitment(`${label}-line-terms`),
+  );
+  return { lineId, planId, seriesId };
+}
+
+async function depositCapital(
+  fixture: Awaited<ReturnType<typeof deployBackstopFixture>>,
+  lineId: string,
+  contributor: Awaited<ReturnType<typeof deployBackstopFixture>>["contributor"],
+  amount: bigint,
+  label: string,
+) {
+  await fixture.token.mint(contributor.address, amount);
+  await fixture.token.connect(contributor).approve(fixture.vaultAddress, amount);
+  await fixture.protocol.connect(contributor).depositReserveCapital(
+    lineId,
+    amount,
+    0,
+    commitment(`${label}-capital`),
+  );
+  return fixture.protocol.contributorShares(lineId, contributor.address);
+}
+
+async function finalizeApprovedClaim(
+  fixture: Awaited<ReturnType<typeof deployBackstopFixture>>,
+  lineId: string,
+  amount: bigint,
+  label: string,
+) {
+  const line = await fixture.protocol.getFundingLine(lineId);
+  const nullifier = commitment(`${label}-nullifier`);
+  const claimId = await fixture.protocol.deriveClaimId(line.planId, fixture.claimant.address, nullifier);
+  await fixture.protocol.connect(fixture.claimant).openClaimCase(
+    lineId,
+    commitment(`${label}-claim`),
+    nullifier,
+    fixture.payoutRecipient.address,
+    amount,
+  );
+  const decision = commitment(`${label}-approval`);
+  await fixture.protocol.connect(fixture.attesterOne).attestClaim(claimId, true, amount, decision);
+  await fixture.protocol.connect(fixture.attesterTwo).attestClaim(claimId, true, amount, decision);
+  await networkHelpers.time.increase(3_601);
+  await fixture.protocol.connect(fixture.relayer).finalizeClaimCase(claimId);
+  return { claimId, claim: await fixture.protocol.getClaim(claimId) };
 }
 
 describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
@@ -322,7 +403,7 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
     await fixture.token.connect(fixture.contributor).approve(fixture.vaultAddress, 100);
     await fixture.protocol
       .connect(fixture.contributor)
-      .depositReserveCapital(fixture.lineId, 100, commitment("recipient guard capital"));
+      .depositReserveCapital(fixture.lineId, 100, 0, commitment("recipient guard capital"));
     for (const invalidRecipient of [
       await fixture.protocol.getAddress(),
       await fixture.token.getAddress(),
@@ -332,7 +413,7 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
       await expect(
         fixture.protocol
           .connect(fixture.contributor)
-          .withdrawReserveCapital(fixture.lineId, 1, invalidRecipient),
+          .withdrawReserveCapital(fixture.lineId, 1, 0, invalidRecipient),
       ).to.be.revertedWithCustomError(fixture.protocol, "InvalidAddress");
     }
   });
@@ -347,7 +428,7 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
     await expect(
       fixture.protocol
         .connect(fixture.contributor)
-        .depositReserveCapital(fixture.lineId, 100, commitment("stopped funding")),
+        .depositReserveCapital(fixture.lineId, 100, 0, commitment("stopped funding")),
     ).to.be.revertedWithCustomError(fixture.protocol, "IntakeClosed");
 
     const nullifier = commitment("claim while stopped");
@@ -379,7 +460,11 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
     expect(sheet.pendingClaims).to.equal(400n);
     expect(sheet.reserved).to.equal(0n);
     expect(await fixture.protocol.freeLineAssets(fixture.lineId)).to.equal(600n);
-    expect(await fixture.protocol.contributorExitQuote(fixture.lineId, 1_000)).to.equal(600n);
+    const contributorShares = await fixture.protocol.contributorShares(
+      fixture.lineId,
+      fixture.contributor.address,
+    );
+    expect(await fixture.protocol.contributorExitQuote(fixture.lineId, contributorShares)).to.equal(600n);
 
     const now = BigInt(await networkHelpers.time.latest());
     await fixture.protocol
@@ -391,7 +476,7 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
 
     await fixture.protocol
       .connect(fixture.contributor)
-      .withdrawReserveCapital(fixture.lineId, 1_000, fixture.contributor.address);
+      .withdrawReserveCapital(fixture.lineId, contributorShares, 600, fixture.contributor.address);
     expect(await fixture.token.balanceOf(fixture.contributor.address)).to.equal(600n);
 
     await networkHelpers.time.increase(3_601);
@@ -414,6 +499,328 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
     expect(sheet.returned).to.equal(600n);
     expect((await fixture.protocol.vaultCoverage(fixture.domainId, await fixture.token.getAddress())).solvent)
       .to.equal(true);
+  });
+
+  it("blocks the seed-donation sandwich with virtual offsets and mandatory deposit slippage", async function () {
+    const fixture = await networkHelpers.loadFixture(deployBackstopFixture);
+    const attacker = fixture.contributor;
+    const victim = fixture.outsider;
+    await fixture.token.mint(attacker.address, 501);
+    await fixture.token.connect(attacker).approve(fixture.vaultAddress, 501);
+    await fixture.protocol.connect(attacker).depositReserveCapital(
+      fixture.lineId,
+      1,
+      0,
+      commitment("sandwich seed"),
+    );
+    expect(await fixture.protocol.contributorShares(fixture.lineId, attacker.address)).to.equal(1_000_000n);
+
+    const victimPreDonationQuote = await fixture.protocol.contributorDepositQuote(fixture.lineId, 1_000);
+    expect(victimPreDonationQuote).to.equal(1_000_000_000n);
+    await fixture.protocol.connect(attacker).recordReserveEarnings(
+      fixture.lineId,
+      500,
+      commitment("sandwich donation"),
+    );
+    await fixture.token.mint(victim.address, 1_000);
+    await fixture.token.connect(victim).approve(fixture.vaultAddress, 1_000);
+    await expect(fixture.protocol.connect(victim).depositReserveCapital(
+      fixture.lineId,
+      1_000,
+      victimPreDonationQuote,
+      commitment("slippage protected victim"),
+    )).to.be.revertedWithCustomError(fixture.protocol, "SlippageExceeded");
+
+    const postDonationQuote = await fixture.protocol.contributorDepositQuote(fixture.lineId, 1_000);
+    expect(postDonationQuote).to.equal(3_984_063n);
+    await fixture.protocol.connect(victim).depositReserveCapital(
+      fixture.lineId,
+      1_000,
+      postDonationQuote,
+      commitment("explicit repriced victim"),
+    );
+    const attackerShares = await fixture.protocol.contributorShares(fixture.lineId, attacker.address);
+    await fixture.protocol.connect(attacker).withdrawReserveCapital(
+      fixture.lineId,
+      attackerShares,
+      0,
+      attacker.address,
+    );
+    expect(await fixture.token.balanceOf(attacker.address)).to.equal(251n);
+  });
+
+  it("prices deposits without reversible pending-claim discounts before a full denial", async function () {
+    const fixture = await networkHelpers.loadFixture(deployBackstopFixture);
+    await depositCapital(fixture, fixture.lineId, fixture.contributor, 1_000n, "pending denial base");
+    const nullifier = commitment("pending denial nullifier");
+    const claimId = await fixture.protocol.deriveClaimId(
+      fixture.planId,
+      fixture.claimant.address,
+      nullifier,
+    );
+    await fixture.protocol.connect(fixture.claimant).openClaimCase(
+      fixture.lineId,
+      commitment("pending denial claim"),
+      nullifier,
+      fixture.payoutRecipient.address,
+      1_000,
+    );
+    await reachInitialDecision(fixture, claimId, true, 1_000n, "pending full approval");
+    expect(await fixture.protocol.freeLineAssets(fixture.lineId)).to.equal(0n);
+
+    const attacker = fixture.outsider;
+    const attackerShares = await depositCapital(fixture, fixture.lineId, attacker, 100n, "pending denial attacker");
+    expect(attackerShares).to.equal(100_000_000n);
+    await fixture.protocol.connect(fixture.claimant).challengeClaim(
+      claimId,
+      commitment("honest denial challenge"),
+    );
+    const denial = commitment("honest denial");
+    await fixture.protocol.connect(fixture.attesterOne).attestClaim(claimId, false, 0, denial);
+    await fixture.protocol.connect(fixture.attesterTwo).attestClaim(claimId, false, 0, denial);
+    expect((await fixture.protocol.lineBalanceSheet(fixture.lineId)).pendingClaims).to.equal(0n);
+    expect(await fixture.protocol.contributorExitQuote(fixture.lineId, attackerShares)).to.equal(100n);
+    await fixture.protocol.connect(attacker).withdrawReserveCapital(
+      fixture.lineId,
+      attackerShares,
+      100,
+      attacker.address,
+    );
+    expect(await fixture.token.balanceOf(attacker.address)).to.equal(100n);
+  });
+
+  it("does not create a denial windfall when a challenged pending claim only decreases", async function () {
+    const fixture = await networkHelpers.loadFixture(deployBackstopFixture);
+    await depositCapital(fixture, fixture.lineId, fixture.contributor, 1_000n, "partial pending base");
+    const nullifier = commitment("partial pending nullifier");
+    const claimId = await fixture.protocol.deriveClaimId(
+      fixture.planId,
+      fixture.claimant.address,
+      nullifier,
+    );
+    await fixture.protocol.connect(fixture.claimant).openClaimCase(
+      fixture.lineId,
+      commitment("partial pending claim"),
+      nullifier,
+      fixture.payoutRecipient.address,
+      1_000,
+    );
+    await reachInitialDecision(fixture, claimId, true, 1_000n, "partial initial approval");
+    const attacker = fixture.outsider;
+    const attackerShares = await depositCapital(fixture, fixture.lineId, attacker, 100n, "partial pending attacker");
+    await fixture.protocol.connect(fixture.claimant).challengeClaim(
+      claimId,
+      commitment("partial challenge"),
+    );
+    const partialApproval = commitment("partial appeal approval");
+    await fixture.protocol.connect(fixture.attesterOne).attestClaim(claimId, true, 400, partialApproval);
+    await fixture.protocol.connect(fixture.attesterTwo).attestClaim(claimId, true, 400, partialApproval);
+    expect((await fixture.protocol.lineBalanceSheet(fixture.lineId)).pendingClaims).to.equal(400n);
+    expect(await fixture.protocol.contributorExitQuote(fixture.lineId, attackerShares)).to.equal(63n);
+    await fixture.protocol.connect(attacker).withdrawReserveCapital(
+      fixture.lineId,
+      attackerShares,
+      63,
+      attacker.address,
+    );
+    expect(await fixture.token.balanceOf(attacker.address)).to.equal(63n);
+  });
+
+  it("keeps direct pre-deposit token donations outside contributor accounting", async function () {
+    const fixture = await networkHelpers.loadFixture(deployBackstopFixture);
+    await fixture.token.mint(fixture.outsider.address, 500);
+    await fixture.token.connect(fixture.outsider).transfer(fixture.vaultAddress, 500);
+    const shares = await depositCapital(
+      fixture,
+      fixture.lineId,
+      fixture.contributor,
+      1_000n,
+      "post donation first deposit",
+    );
+    await fixture.protocol.connect(fixture.contributor).withdrawReserveCapital(
+      fixture.lineId,
+      shares,
+      1_000,
+      fixture.contributor.address,
+    );
+    expect(await fixture.token.balanceOf(fixture.contributor.address)).to.equal(1_000n);
+    expect(await fixture.token.balanceOf(fixture.vaultAddress)).to.equal(500n);
+    expect((await fixture.protocol.lineBalanceSheet(fixture.lineId)).funded).to.equal(0n);
+  });
+
+  it("restarts safely after the last exit leaves a virtual-share residual", async function () {
+    const fixture = await networkHelpers.loadFixture(deployBackstopFixture);
+    const firstShares = await depositCapital(
+      fixture,
+      fixture.lineId,
+      fixture.contributor,
+      1_000n,
+      "residual first capital",
+    );
+    await fixture.token.mint(fixture.outsider.address, 500);
+    await fixture.token.connect(fixture.outsider).approve(fixture.vaultAddress, 500);
+    await fixture.protocol.connect(fixture.outsider).recordReserveEarnings(
+      fixture.lineId,
+      500,
+      commitment("residual earnings"),
+    );
+    await fixture.protocol.connect(fixture.contributor).withdrawReserveCapital(
+      fixture.lineId,
+      firstShares,
+      1_499,
+      fixture.contributor.address,
+    );
+    expect((await fixture.protocol.lineBalanceSheet(fixture.lineId)).funded).to.equal(1n);
+    expect(await fixture.protocol.totalContributorShares(fixture.lineId)).to.equal(0n);
+
+    const restartShares = await depositCapital(
+      fixture,
+      fixture.lineId,
+      fixture.relayer,
+      1_000n,
+      "residual restart capital",
+    );
+    expect(restartShares).to.equal(500_000_000n);
+    await fixture.protocol.connect(fixture.relayer).withdrawReserveCapital(
+      fixture.lineId,
+      restartShares,
+      1_000,
+      fixture.relayer.address,
+    );
+    expect(await fixture.token.balanceOf(fixture.relayer.address)).to.equal(1_000n);
+    expect((await fixture.protocol.lineBalanceSheet(fixture.lineId)).funded).to.equal(1n);
+  });
+
+  it("keeps wiped shares non-dilutable and revives them only through no-share earnings", async function () {
+    const fixture = await networkHelpers.loadFixture(deployBackstopFixture);
+    await depositCapital(fixture, fixture.lineId, fixture.contributor, 1_000n, "wiped capital");
+    const { claim } = await finalizeApprovedClaim(fixture, fixture.lineId, 1_000n, "wiped claim");
+    await fixture.protocol.connect(fixture.outsider).reserveObligation(claim.obligationId);
+    await fixture.protocol.connect(fixture.relayer).settleObligation(claim.obligationId);
+    expect((await fixture.protocol.lineBalanceSheet(fixture.lineId)).funded).to.equal(0n);
+    expect(await fixture.protocol.totalContributorShares(fixture.lineId)).to.equal(1_000_000_000n);
+
+    await fixture.token.mint(fixture.outsider.address, 200);
+    await fixture.token.connect(fixture.outsider).approve(fixture.vaultAddress, 200);
+    await expect(fixture.protocol.connect(fixture.outsider).depositReserveCapital(
+      fixture.lineId,
+      100,
+      0,
+      commitment("forbidden wipe dilution"),
+    )).to.be.revertedWithCustomError(fixture.protocol, "InvalidState");
+    await fixture.protocol.connect(fixture.outsider).recordReserveEarnings(
+      fixture.lineId,
+      100,
+      commitment("wiped share revival"),
+    );
+    const revivedQuote = await fixture.protocol.contributorDepositQuote(fixture.lineId, 100);
+    expect(revivedQuote).to.not.equal(0n);
+    await fixture.protocol.connect(fixture.outsider).depositReserveCapital(
+      fixture.lineId,
+      100,
+      revivedQuote,
+      commitment("post revival capital"),
+    );
+    expect(await fixture.protocol.contributorShares(fixture.lineId, fixture.outsider.address))
+      .to.equal(revivedQuote);
+  });
+
+  it("keeps an unfunded line from consuming a funded sibling line in the same plan", async function () {
+    const fixture = await networkHelpers.loadFixture(deployBackstopFixture);
+    const sibling = await createBackstopLine(fixture, "same plan sibling");
+    const { claim } = await finalizeApprovedClaim(fixture, fixture.lineId, 100n, "same plan unfunded");
+    const siblingShares = await depositCapital(
+      fixture,
+      sibling.lineId,
+      fixture.contributor,
+      100n,
+      "same plan funded sibling",
+    );
+    await expect(fixture.protocol.connect(fixture.outsider).reserveObligation(claim.obligationId))
+      .to.be.revertedWithCustomError(fixture.protocol, "InsufficientReserveLiquidity")
+      .withArgs(0, 100);
+    expect(await fixture.protocol.contributorExitQuote(sibling.lineId, siblingShares)).to.equal(100n);
+    await fixture.protocol.connect(fixture.contributor).withdrawReserveCapital(
+      sibling.lineId,
+      siblingShares,
+      100,
+      fixture.contributor.address,
+    );
+    const planSheet = await fixture.protocol.planBalanceSheet(
+      fixture.planId,
+      await fixture.token.getAddress(),
+    );
+    expect(planSheet.funded).to.equal(0n);
+    expect(planSheet.owed).to.equal(100n);
+    expect(planSheet.returned).to.equal(100n);
+  });
+
+  it("keeps an unfunded plan from consuming a funded sibling plan in the same domain", async function () {
+    const fixture = await networkHelpers.loadFixture(deployBackstopFixture);
+    const sibling = await createBackstopLine(fixture, "cross plan sibling", { newPlan: true });
+    const { claim } = await finalizeApprovedClaim(fixture, fixture.lineId, 100n, "cross plan unfunded");
+    const siblingShares = await depositCapital(
+      fixture,
+      sibling.lineId,
+      fixture.contributor,
+      100n,
+      "cross plan funded sibling",
+    );
+    await expect(fixture.protocol.connect(fixture.outsider).reserveObligation(claim.obligationId))
+      .to.be.revertedWithCustomError(fixture.protocol, "InsufficientReserveLiquidity");
+    await fixture.protocol.connect(fixture.contributor).withdrawReserveCapital(
+      sibling.lineId,
+      siblingShares,
+      100,
+      fixture.contributor.address,
+    );
+    const domainSheet = await fixture.protocol.domainBalanceSheet(
+      fixture.domainId,
+      await fixture.token.getAddress(),
+    );
+    expect(domainSheet.funded).to.equal(0n);
+    expect(domainSheet.owed).to.equal(100n);
+    expect(domainSheet.returned).to.equal(100n);
+    expect((await fixture.protocol.planBalanceSheet(sibling.planId, await fixture.token.getAddress())).owed)
+      .to.equal(0n);
+  });
+
+  it("permissionlessly recapitalizes only finalized deficits despite inactive scopes and intake caps", async function () {
+    const fixture = await networkHelpers.loadFixture(deployBackstopFixture);
+    const capped = await createBackstopLine(fixture, "capped recap", { capitalCap: 150n });
+    await depositCapital(fixture, capped.lineId, fixture.contributor, 100n, "capped initial capital");
+    const { claim } = await finalizeApprovedClaim(fixture, capped.lineId, 200n, "capped liability");
+    expect((await fixture.protocol.lineBalanceSheet(capped.lineId)).owed).to.equal(200n);
+    await fixture.protocol.connect(fixture.domainController).setDomainControls(fixture.domainId, false, 0);
+    await fixture.protocol.connect(fixture.planController).setPlanControls(capped.planId, false, 0);
+
+    await expect(fixture.protocol.connect(fixture.outsider).recapitalizeLine(
+      fixture.lineId,
+      1,
+      commitment("no liability recap"),
+    )).to.be.revertedWithCustomError(fixture.protocol, "InvalidState");
+    await expect(fixture.protocol.connect(fixture.outsider).recapitalizeLine(
+      capped.lineId,
+      101,
+      commitment("excess recap"),
+    )).to.be.revertedWithCustomError(fixture.protocol, "RecapitalizationExceedsDeficit")
+      .withArgs(100, 101);
+
+    await fixture.token.mint(fixture.outsider.address, 100);
+    await fixture.token.connect(fixture.outsider).approve(fixture.vaultAddress, 100);
+    await fixture.protocol.connect(fixture.outsider).recapitalizeLine(
+      capped.lineId,
+      100,
+      commitment("permissionless exact recap"),
+    );
+    expect((await fixture.protocol.getFundingLine(capped.lineId)).grossFunded).to.equal(200n);
+    await fixture.protocol.connect(fixture.outsider).reserveObligation(claim.obligationId);
+    await fixture.protocol.connect(fixture.relayer).settleObligation(claim.obligationId);
+    expect(await fixture.token.balanceOf(fixture.payoutRecipient.address)).to.equal(200n);
+    const sheet = await fixture.protocol.lineBalanceSheet(capped.lineId);
+    expect(sheet.funded).to.equal(0n);
+    expect(sheet.owed).to.equal(0n);
+    expect(sheet.reserved).to.equal(0n);
   });
 
   it("permits exactly one challenge round and permissionless fallback finality", async function () {
@@ -477,7 +884,7 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
     await fixture.token.connect(fixture.contributor).approve(fixture.vaultAddress, 500);
     await fixture.protocol
       .connect(fixture.contributor)
-      .depositReserveCapital(fixture.lineId, 500, commitment("future vault guard capital"));
+      .depositReserveCapital(fixture.lineId, 500, 0, commitment("future vault guard capital"));
 
     const futureToken = await ethers.deployContract("MockERC20", ["Future Reserve USD", "frUSD"]);
     const protocolAddress = await fixture.protocol.getAddress();
@@ -638,7 +1045,7 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
     await expect(
       fixture.protocol
         .connect(fixture.contributor)
-        .depositReserveCapital(fixture.lineId, 1_000, commitment("fee token deposit")),
+        .depositReserveCapital(fixture.lineId, 1_000, 0, commitment("fee token deposit")),
     )
       .to.be.revertedWithCustomError(vault, "UnsupportedTokenBehavior")
       .withArgs(1_000, 1_000, 990);
@@ -655,7 +1062,7 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
     await expect(
       fixture.protocol
         .connect(fixture.contributor)
-        .depositReserveCapital(fixture.lineId, 1_000, commitment("sender fee token deposit")),
+        .depositReserveCapital(fixture.lineId, 1_000, 0, commitment("sender fee token deposit")),
     )
       .to.be.revertedWithCustomError(vault, "UnsupportedTokenBehavior")
       .withArgs(1_000, 1_010, 1_000);
@@ -670,17 +1077,20 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
     const callbackData = fixture.protocol.interface.encodeFunctionData("depositReserveCapital", [
       fixture.lineId,
       1,
+      0,
       commitment("nested deposit"),
     ]);
     await fixture.token.armCallback(await fixture.protocol.getAddress(), callbackData);
 
     await fixture.protocol
       .connect(fixture.contributor)
-      .depositReserveCapital(fixture.lineId, 100, commitment("outer deposit"));
+      .depositReserveCapital(fixture.lineId, 100, 0, commitment("outer deposit"));
     expect(await fixture.token.callbackAttempted()).to.equal(true);
     expect(await fixture.token.callbackSucceeded()).to.equal(false);
     expect((await fixture.protocol.lineBalanceSheet(fixture.lineId)).funded).to.equal(100n);
-    expect(await fixture.protocol.contributorShares(fixture.lineId, fixture.contributor.address)).to.equal(100n);
+    expect(await fixture.protocol.contributorShares(fixture.lineId, fixture.contributor.address)).to.equal(
+      100_000_000n,
+    );
   });
 
   it("blocks reserve-vault registry mutation during an exact withdrawal transfer", async function () {
@@ -689,7 +1099,7 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
     await fixture.token.connect(fixture.contributor).approve(fixture.vaultAddress, 100);
     await fixture.protocol
       .connect(fixture.contributor)
-      .depositReserveCapital(fixture.lineId, 100, commitment("registry guard capital"));
+      .depositReserveCapital(fixture.lineId, 100, 0, commitment("registry guard capital"));
 
     const futureToken = await ethers.deployContract("MockERC20", ["Callback Vault Asset", "CVA"]);
     const callbackData = fixture.protocol.interface.encodeFunctionData("createDomainAssetVault", [
@@ -699,7 +1109,7 @@ describe("NakamaCoverageProtocol Ethereum vertical slice", function () {
     await fixture.token.armCallback(await fixture.protocol.getAddress(), callbackData);
     await fixture.protocol
       .connect(fixture.contributor)
-      .withdrawReserveCapital(fixture.lineId, 10, fixture.contributor.address);
+      .withdrawReserveCapital(fixture.lineId, 10_000_000, 10, fixture.contributor.address);
 
     expect(await fixture.token.callbackAttempted()).to.equal(true);
     expect(await fixture.token.callbackSucceeded()).to.equal(false);

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "status": "unconfigured",
   "chainId": 1,
   "caip2": "eip155:1",
@@ -8,9 +8,14 @@
   "deployer": null,
   "deploymentTransaction": null,
   "deploymentBlock": null,
+  "deploymentBlockHash": null,
   "confirmations": null,
   "sourceCommit": null,
+  "creationBytecodeHash": null,
   "runtimeBytecodeHash": null,
+  "runtimeBytecodeTemplateHash": null,
+  "runtimeBytecodeBytes": null,
+  "immutableReferences": [],
   "abiArtifact": "shared/ethereum/protocol_contract.json",
   "verified": false,
   "auditStatus": "unaudited"

@@ -51,10 +51,28 @@ library ReserveAccounting {
         _assertInvariant(sheet);
     }
 
+    /// @dev Plan and domain sheets are reporting aggregates, not fungible
+    /// liquidity pools. The funding-line mutation has already established that
+    /// the attributed line can reserve this amount, so aggregate scopes only
+    /// mirror the resulting totals and assert their accounting invariant.
+    function recordAggregateReservation(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
+        sheet.reserved += amount;
+        _assertInvariant(sheet);
+    }
+
     function bookSettlement(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
         if (amount > sheet.reserved || amount > sheet.owed || amount > sheet.funded) {
             revert LedgerInvariantViolation();
         }
+        sheet.funded -= amount;
+        sheet.owed -= amount;
+        sheet.reserved -= amount;
+        sheet.settled += amount;
+        _assertInvariant(sheet);
+    }
+
+    /// @dev Mirrors a settlement already validated against its funding line.
+    function recordAggregateSettlement(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
         sheet.funded -= amount;
         sheet.owed -= amount;
         sheet.reserved -= amount;
@@ -74,6 +92,14 @@ library ReserveAccounting {
     function bookWithdrawal(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
         uint256 available = freeAssets(sheet);
         if (amount > available) revert InsufficientFreeAssets(available, amount);
+        sheet.funded -= amount;
+        sheet.returned += amount;
+        _assertInvariant(sheet);
+    }
+
+    /// @dev Mirrors an exit already validated against its funding line. Owed
+    /// or pending amounts on another line must not consume this line's equity.
+    function recordAggregateWithdrawal(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
         sheet.funded -= amount;
         sheet.returned += amount;
         _assertInvariant(sheet);

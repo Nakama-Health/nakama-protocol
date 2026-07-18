@@ -7,6 +7,7 @@ import {
   validateDeploymentRuntime,
 } from "./lib/ethereum_deploy_guard.mjs";
 import { runReleasePreflight } from "./lib/ethereum_release_preflight.mjs";
+import { buildEthereumPreflightReport } from "./lib/ethereum_preflight_report.mjs";
 
 const config = validateDeploymentEnvironment();
 const release = await runReleasePreflight(config);
@@ -26,21 +27,7 @@ const runtime = validateDeploymentRuntime(config, {
 
 console.log(
   JSON.stringify(
-    {
-      ok: true,
-      mode: "preflight-only-no-transaction",
-      chainId: Number(network.chainId),
-      caip2: "eip155:1",
-      deployer: runtime.deployer,
-      balanceRequirementMet: true,
-      runtimeBytecodeBytes: runtime.runtimeBytecodeBytes,
-      sourceCommit: config.sourceCommit,
-      auditReportSha256: config.auditReportSha256,
-      releaseApprovalSha256: config.releaseApprovalSha256,
-      runtimeBytecodeHash: release.protocolRuntimeBytecodeHash,
-      protocolArtifactSha256: release.protocolArtifactSha256,
-      confirmations: config.confirmations,
-    },
+    buildEthereumPreflightReport(config, release, runtime, network.chainId),
     null,
     2,
   ),

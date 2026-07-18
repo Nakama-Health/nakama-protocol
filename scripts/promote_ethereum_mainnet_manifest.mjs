@@ -3,14 +3,19 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { getAddress } from "ethers";
 
 import {
   buildPublishedDeploymentManifest,
   validateIntermediateDeployment,
   validatePublishedDeploymentManifest,
   validateSdkAbi,
-  validateSourceVerificationEvidence,
 } from "./lib/ethereum_manifest_promotion.mjs";
+import {
+  attestEthereumMainnetDeployment,
+  verifySourcifyExactMatch,
+} from "./lib/ethereum_chain_verification.mjs";
+import { validateMainnetRpcUrl } from "./lib/ethereum_deploy_guard.mjs";
 import { runReleasePreflight } from "./lib/ethereum_release_preflight.mjs";
 
 function argument(name) {
@@ -22,8 +27,8 @@ function argument(name) {
 }
 
 const deploymentPath = argument("--deployment");
-const verificationPath = argument("--verification");
 const sdkAbiPath = argument("--sdk-abi");
+const rpcUrl = validateMainnetRpcUrl(process.env.ETHEREUM_MAINNET_RPC_URL?.trim() ?? "");
 const localReleaseManifest = JSON.parse(
   await readFile(resolve(process.cwd(), "deployments/ethereum-mainnet.release.json"), "utf8").catch(() => {
     throw new Error("Missing ignored deployments/ethereum-mainnet.release.json");
@@ -31,24 +36,28 @@ const localReleaseManifest = JSON.parse(
 );
 const release = await runReleasePreflight({
   sourceCommit: localReleaseManifest.sourceCommit,
+  expectedDeployer: getAddress(localReleaseManifest.expectedDeployer),
   auditReportSha256: localReleaseManifest.auditReportSha256,
   releaseApprovalSha256: localReleaseManifest.releaseApprovalSha256,
 });
-const [deploymentRaw, verificationRaw, sdkAbiRaw] = await Promise.all([
+const [deploymentRaw, sdkAbiRaw] = await Promise.all([
   readFile(deploymentPath, "utf8"),
-  readFile(verificationPath, "utf8"),
   readFile(sdkAbiPath, "utf8"),
 ]);
 const deployment = validateIntermediateDeployment(JSON.parse(deploymentRaw), release);
-const verificationEvidence = validateSourceVerificationEvidence(
-  JSON.parse(verificationRaw),
+const canonicalDeployment = await attestEthereumMainnetDeployment(
   deployment,
+  release,
+  { rpcUrl },
 );
+const sourceVerification = await verifySourcifyExactMatch(canonicalDeployment.protocolAddress);
 const sdkAbi = JSON.parse(sdkAbiRaw);
 validateSdkAbi(sdkAbi, release.protocolAbi);
 const abiSha256 = createHash("sha256").update(sdkAbiRaw).digest("hex");
-const verificationEvidenceSha256 = createHash("sha256").update(verificationRaw).digest("hex");
-const manifest = buildPublishedDeploymentManifest(deployment, verificationEvidence, {
+const verificationEvidenceSha256 = createHash("sha256")
+  .update(`${JSON.stringify(sourceVerification, null, 2)}\n`)
+  .digest("hex");
+const manifest = buildPublishedDeploymentManifest(canonicalDeployment, sourceVerification, {
   abiSha256,
   verificationEvidenceSha256,
 });

@@ -59,8 +59,8 @@ strategy/
 
 # Operator-local Ethereum release approval (the tracked example remains inert)
 deployments/ethereum-mainnet.release.json
-deployments/ethereum-mainnet.verification.json
 deployments/ethereum-mainnet.pending.json
+deployments/ethereum-mainnet.broadcast.json
 
 # Private internal research data
 /internal-db/

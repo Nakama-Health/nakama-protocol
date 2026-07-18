@@ -1,10 +1,12 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "status": "not-approved",
   "sourceCommit": null,
+  "expectedDeployer": null,
   "auditReportSha256": null,
   "releaseApprovalSha256": null,
-  "protocolRuntimeBytecodeHash": null,
+  "protocolCreationBytecodeHash": null,
+  "protocolRuntimeBytecodeTemplateHash": null,
   "protocolArtifactSha256": null,
   "independentAuditCompleted": false,
   "releaseApproved": false

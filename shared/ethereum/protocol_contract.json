@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "chainFamily": "eip155",
   "canonicalChain": "eip155:1",
   "compiler": {
@@ -211,11 +211,6 @@
           "type": "error"
         },
         {
-          "inputs": [],
-          "name": "NoFreeEquity",
-          "type": "error"
-        },
-        {
           "inputs": [
             {
               "internalType": "bytes32",
@@ -243,6 +238,22 @@
           "type": "error"
         },
         {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "deficit",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "RecapitalizationExceedsDeficit",
+          "type": "error"
+        },
+        {
           "inputs": [],
           "name": "ReentrancyGuardReentrantCall",
           "type": "error"
@@ -250,6 +261,22 @@
         {
           "inputs": [],
           "name": "SignatureExpired",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "minimum",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "actual",
+              "type": "uint256"
+            }
+          ],
+          "name": "SlippageExceeded",
           "type": "error"
         },
         {
@@ -1091,6 +1118,30 @@
             },
             {
               "internalType": "uint256",
+              "name": "assets",
+              "type": "uint256"
+            }
+          ],
+          "name": "contributorDepositQuote",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "lineId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
               "name": "shares",
               "type": "uint256"
             }
@@ -1266,6 +1317,11 @@
             {
               "internalType": "uint256",
               "name": "amount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "minShares",
               "type": "uint256"
             },
             {
@@ -2412,6 +2468,29 @@
               "type": "bytes32"
             }
           ],
+          "name": "recapitalizeLine",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "lineId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "referenceCommitment",
+              "type": "bytes32"
+            }
+          ],
           "name": "recordPremiumPayment",
           "outputs": [],
           "stateMutability": "nonpayable",
@@ -2615,6 +2694,11 @@
               "type": "uint256"
             },
             {
+              "internalType": "uint256",
+              "name": "minAssets",
+              "type": "uint256"
+            },
+            {
               "internalType": "address",
               "name": "recipient",
               "type": "address"
@@ -2632,10 +2716,40 @@
           "type": "function"
         }
       ],
-      "abiSha256": "4ea52861f897333dd7e2f292e564c462254f87595403bf315d11381e52ed0ef1",
-      "creationBytecodeHash": "0x255ffe2848fa5a7e57da4437cf9cd2f31f5d5a716400e6a17364d7b522c7f9de",
-      "runtimeBytecodeHash": "0x8094be10af7a386c371963dd3b2f8adc4a02e287a3b2304d6f447ea7e326f7be",
-      "runtimeBytecodeBytes": 23615
+      "abiSha256": "4cb37a4c703638bf238ce40b8fb4ea8b5bc31fb080395ac8bb11d3405c95d338",
+      "creationBytecodeHash": "0x738e05aa8f415c274ab84c4c2232f3d3e47c69660895a36043f9969122da217f",
+      "runtimeBytecodeTemplateHash": "0x132f061e021c5e981280fb3c62e448c8ad2602c3fcd397bf80802a4a286a12b8",
+      "runtimeBytecodeBytes": 24502,
+      "immutableReferences": [
+        {
+          "start": 8273,
+          "length": 32
+        },
+        {
+          "start": 8315,
+          "length": 32
+        },
+        {
+          "start": 21609,
+          "length": 32
+        },
+        {
+          "start": 21663,
+          "length": 32
+        },
+        {
+          "start": 21742,
+          "length": 32
+        },
+        {
+          "start": 21780,
+          "length": 32
+        },
+        {
+          "start": 21846,
+          "length": 32
+        }
+      ]
     },
     "ReserveVault": {
       "abi": [
@@ -2780,8 +2894,38 @@
       ],
       "abiSha256": "b6d2294056185bf0159fb9c562e5c6279a18364a5d7e1066aecf458546b302e3",
       "creationBytecodeHash": "0x1afdeb212685300237e807661a86094834cf06fc1e3f50fd3d17fc06293b1fa3",
-      "runtimeBytecodeHash": "0x4186b9b73bede94e5d981327f635771a54cebb68551f14bfaba6aceafdcb5bcf",
-      "runtimeBytecodeBytes": 1840
+      "runtimeBytecodeTemplateHash": "0x4186b9b73bede94e5d981327f635771a54cebb68551f14bfaba6aceafdcb5bcf",
+      "runtimeBytecodeBytes": 1840,
+      "immutableReferences": [
+        {
+          "start": 104,
+          "length": 32
+        },
+        {
+          "start": 178,
+          "length": 32
+        },
+        {
+          "start": 230,
+          "length": 32
+        },
+        {
+          "start": 326,
+          "length": 32
+        },
+        {
+          "start": 1017,
+          "length": 32
+        },
+        {
+          "start": 1107,
+          "length": 32
+        },
+        {
+          "start": 1614,
+          "length": 32
+        }
+      ]
     }
   }
 }

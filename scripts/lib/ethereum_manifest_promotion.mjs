@@ -2,6 +2,9 @@
 
 import { getAddress } from "ethers";
 
+import { canonicalImmutableReferences } from "./ethereum_bytecode.mjs";
+import { sourcifyLookupUrl } from "./ethereum_chain_verification.mjs";
+
 export const FINAL_SDK_ABI_ARTIFACT = "contracts/ethereum/NakamaCoverageProtocol.abi.json";
 
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
@@ -20,8 +23,18 @@ function normalizedAddress(value, field) {
   return address;
 }
 
+function equalReferences(candidate, approved) {
+  const normalizedCandidate = canonicalImmutableReferences(candidate);
+  const normalizedApproved = canonicalImmutableReferences(approved);
+  requireCondition(
+    JSON.stringify(normalizedCandidate) === JSON.stringify(normalizedApproved),
+    "immutableReferences must exactly match the approved generated artifact",
+  );
+  return normalizedApproved;
+}
+
 function validateCommonDeploymentFields(deployment) {
-  requireCondition(deployment?.schemaVersion === 1, "Deployment schemaVersion must be 1");
+  requireCondition(deployment?.schemaVersion === 2, "Deployment schemaVersion must be 2");
   requireCondition(deployment.chainId === 1, "Deployment chainId must be 1");
   requireCondition(deployment.caip2 === "eip155:1", "Deployment caip2 must be eip155:1");
   requireCondition(
@@ -30,11 +43,18 @@ function validateCommonDeploymentFields(deployment) {
   );
   const protocolAddress = normalizedAddress(deployment.protocolAddress, "protocolAddress");
   const deployer = normalizedAddress(deployment.deployer, "deployer");
-  requireCondition(
-    typeof deployment.deploymentTransaction === "string"
-      && BYTES32_PATTERN.test(deployment.deploymentTransaction),
-    "deploymentTransaction must be a 32-byte transaction hash",
-  );
+  for (const field of [
+    "deploymentTransaction",
+    "deploymentBlockHash",
+    "creationBytecodeHash",
+    "runtimeBytecodeHash",
+    "runtimeBytecodeTemplateHash",
+  ]) {
+    requireCondition(
+      typeof deployment[field] === "string" && BYTES32_PATTERN.test(deployment[field]),
+      `${field} must be a 32-byte hash`,
+    );
+  }
   requireCondition(
     Number.isSafeInteger(deployment.deploymentBlock) && deployment.deploymentBlock > 0,
     "deploymentBlock must be a positive safe integer",
@@ -44,15 +64,17 @@ function validateCommonDeploymentFields(deployment) {
     "confirmations must be a safe integer of at least 12",
   );
   requireCondition(
+    Number.isSafeInteger(deployment.runtimeBytecodeBytes)
+      && deployment.runtimeBytecodeBytes > 0
+      && deployment.runtimeBytecodeBytes <= 24_576,
+    "runtimeBytecodeBytes must be a positive safe integer within the EIP-170 limit",
+  );
+  requireCondition(
     typeof deployment.sourceCommit === "string" && SOURCE_COMMIT_PATTERN.test(deployment.sourceCommit),
     "sourceCommit must be a lowercase 40-character commit hash",
   );
-  requireCondition(
-    typeof deployment.runtimeBytecodeHash === "string"
-      && BYTES32_PATTERN.test(deployment.runtimeBytecodeHash),
-    "runtimeBytecodeHash must be a 32-byte hash",
-  );
-  return { protocolAddress, deployer };
+  const immutableReferences = canonicalImmutableReferences(deployment.immutableReferences);
+  return { protocolAddress, deployer, immutableReferences };
 }
 
 function canonicalJson(value) {
@@ -94,8 +116,24 @@ export function validateIntermediateDeployment(deployment, release) {
     "Intermediate sourceCommit does not match the release checkout",
   );
   requireCondition(
-    deployment.runtimeBytecodeHash === release.protocolRuntimeBytecodeHash,
-    "Intermediate runtimeBytecodeHash does not match the approved runtime",
+    normalized.deployer === normalizedAddress(release.releaseManifest.expectedDeployer, "expectedDeployer"),
+    "Intermediate deployer does not match the approved release",
+  );
+  requireCondition(
+    deployment.runtimeBytecodeTemplateHash === release.protocolRuntimeBytecodeTemplateHash,
+    "Intermediate runtimeBytecodeTemplateHash does not match the approved runtime template",
+  );
+  requireCondition(
+    deployment.creationBytecodeHash === release.protocolCreationBytecodeHash,
+    "Intermediate creationBytecodeHash does not match the approved artifact",
+  );
+  requireCondition(
+    deployment.runtimeBytecodeBytes === release.runtimeBytecodeBytes,
+    "Intermediate runtimeBytecodeBytes does not match the approved artifact",
+  );
+  const immutableReferences = equalReferences(
+    normalized.immutableReferences,
+    release.protocolImmutableReferences,
   );
   requireCondition(
     deployment.protocolArtifactSha256 === release.protocolArtifactSha256,
@@ -109,59 +147,12 @@ export function validateIntermediateDeployment(deployment, release) {
     deployment.releaseApprovalSha256 === release.releaseManifest.releaseApprovalSha256,
     "Intermediate releaseApprovalSha256 does not match the approved release",
   );
-  return { ...deployment, ...normalized };
-}
-
-export function validateSourceVerificationEvidence(evidence, deployment) {
-  requireCondition(evidence?.schemaVersion === 1, "Verification evidence schemaVersion must be 1");
-  requireCondition(evidence.status === "verified", "Source verification evidence status must be verified");
-  requireCondition(evidence.chainId === 1, "Source verification evidence chainId must be 1");
-  requireCondition(evidence.caip2 === "eip155:1", "Source verification evidence caip2 must be eip155:1");
-  requireCondition(
-    evidence.contractName === "NakamaCoverageProtocol",
-    "Source verification evidence contractName must be NakamaCoverageProtocol",
-  );
-  requireCondition(
-    normalizedAddress(evidence.protocolAddress, "verification protocolAddress")
-      === deployment.protocolAddress,
-    "Source verification evidence protocolAddress does not match the deployment",
-  );
-  requireCondition(
-    evidence.deploymentTransaction === deployment.deploymentTransaction,
-    "Source verification evidence transaction does not match the deployment",
-  );
-  requireCondition(
-    evidence.sourceCommit === deployment.sourceCommit,
-    "Source verification evidence sourceCommit does not match the deployment",
-  );
-  requireCondition(
-    evidence.runtimeBytecodeHash === deployment.runtimeBytecodeHash,
-    "Source verification evidence runtime hash does not match the deployment",
-  );
-  requireCondition(
-    typeof evidence.verificationProvider === "string" && evidence.verificationProvider.trim() !== "",
-    "Source verification evidence must name its provider",
-  );
-  let verificationUrl;
-  try {
-    verificationUrl = new URL(evidence.verificationUrl);
-  } catch {
-    throw new Error("Source verification evidence must include a valid verificationUrl");
-  }
-  requireCondition(
-    verificationUrl.protocol === "https:",
-    "Source verification evidence verificationUrl must use https",
-  );
-  requireCondition(
-    typeof evidence.verifiedAt === "string" && Number.isFinite(Date.parse(evidence.verifiedAt)),
-    "Source verification evidence must include an ISO-compatible verifiedAt timestamp",
-  );
-  return evidence;
+  return { ...deployment, ...normalized, immutableReferences };
 }
 
 export function buildPublishedDeploymentManifest(
   deployment,
-  verificationEvidence,
+  sourceVerification,
   { abiSha256, verificationEvidenceSha256 },
 ) {
   requireCondition(SHA256_PATTERN.test(abiSha256), "abiSha256 must be a lowercase SHA-256 digest");
@@ -170,7 +161,7 @@ export function buildPublishedDeploymentManifest(
     "verificationEvidenceSha256 must be a lowercase SHA-256 digest",
   );
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     status: "deployed",
     chainId: 1,
     caip2: "eip155:1",
@@ -179,9 +170,14 @@ export function buildPublishedDeploymentManifest(
     deployer: deployment.deployer,
     deploymentTransaction: deployment.deploymentTransaction,
     deploymentBlock: deployment.deploymentBlock,
+    deploymentBlockHash: deployment.deploymentBlockHash,
     confirmations: deployment.confirmations,
     sourceCommit: deployment.sourceCommit,
+    creationBytecodeHash: deployment.creationBytecodeHash,
     runtimeBytecodeHash: deployment.runtimeBytecodeHash,
+    runtimeBytecodeTemplateHash: deployment.runtimeBytecodeTemplateHash,
+    runtimeBytecodeBytes: deployment.runtimeBytecodeBytes,
+    immutableReferences: deployment.immutableReferences,
     abiArtifact: FINAL_SDK_ABI_ARTIFACT,
     abiSha256,
     verified: true,
@@ -189,8 +185,12 @@ export function buildPublishedDeploymentManifest(
     auditReportSha256: deployment.auditReportSha256,
     releaseApprovalSha256: deployment.releaseApprovalSha256,
     protocolArtifactSha256: deployment.protocolArtifactSha256,
-    verificationProvider: verificationEvidence.verificationProvider,
-    verificationUrl: verificationEvidence.verificationUrl,
+    verificationProvider: sourceVerification.verificationProvider,
+    verificationUrl: sourceVerification.verificationUrl,
+    sourceVerifiedAt: sourceVerification.sourceVerifiedAt,
+    sourcifyMatchId: sourceVerification.sourcifyMatchId,
+    creationMatch: sourceVerification.creationMatch,
+    runtimeMatch: sourceVerification.runtimeMatch,
     verificationEvidenceSha256,
   };
 }
@@ -217,15 +217,22 @@ export function validatePublishedDeploymentManifest(manifest) {
     );
   }
   requireCondition(
-    typeof manifest.verificationProvider === "string" && manifest.verificationProvider.trim() !== "",
-    "Published deployment must name its verificationProvider",
+    manifest.verificationProvider === "sourcify-v2",
+    "Published verificationProvider must be sourcify-v2",
   );
-  let verificationUrl;
-  try {
-    verificationUrl = new URL(manifest.verificationUrl);
-  } catch {
-    throw new Error("Published deployment must include a valid verificationUrl");
-  }
-  requireCondition(verificationUrl.protocol === "https:", "Published verificationUrl must use https");
+  requireCondition(
+    manifest.verificationUrl === sourcifyLookupUrl(manifest.protocolAddress),
+    "Published verificationUrl must be the canonical Sourcify v2 lookup",
+  );
+  requireCondition(manifest.creationMatch === "exact_match", "Published creationMatch must be exact_match");
+  requireCondition(manifest.runtimeMatch === "exact_match", "Published runtimeMatch must be exact_match");
+  requireCondition(
+    typeof manifest.sourceVerifiedAt === "string" && Number.isFinite(Date.parse(manifest.sourceVerifiedAt)),
+    "Published sourceVerifiedAt must be an ISO-compatible timestamp",
+  );
+  requireCondition(
+    typeof manifest.sourcifyMatchId === "string" && manifest.sourcifyMatchId.trim() !== "",
+    "Published Sourcify matchId is required",
+  );
   return manifest;
 }

@@ -199,11 +199,6 @@
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "NoFreeEquity",
-    "type": "error"
-  },
-  {
     "inputs": [
       {
         "internalType": "bytes32",
@@ -231,6 +226,22 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "deficit",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "RecapitalizationExceedsDeficit",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "ReentrancyGuardReentrantCall",
     "type": "error"
@@ -238,6 +249,22 @@
   {
     "inputs": [],
     "name": "SignatureExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "minimum",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "actual",
+        "type": "uint256"
+      }
+    ],
+    "name": "SlippageExceeded",
     "type": "error"
   },
   {
@@ -1079,6 +1106,30 @@
       },
       {
         "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      }
+    ],
+    "name": "contributorDepositQuote",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "lineId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
         "name": "shares",
         "type": "uint256"
       }
@@ -1254,6 +1305,11 @@
       {
         "internalType": "uint256",
         "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minShares",
         "type": "uint256"
       },
       {
@@ -2400,6 +2456,29 @@
         "type": "bytes32"
       }
     ],
+    "name": "recapitalizeLine",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "lineId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "referenceCommitment",
+        "type": "bytes32"
+      }
+    ],
     "name": "recordPremiumPayment",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -2600,6 +2679,11 @@
       {
         "internalType": "uint256",
         "name": "shares",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minAssets",
         "type": "uint256"
       },
       {

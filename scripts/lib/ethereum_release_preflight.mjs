@@ -11,6 +11,11 @@ import {
   validateReleaseManifest,
   validateSourceCheckout,
 } from "./ethereum_deploy_guard.mjs";
+import {
+  canonicalImmutableReferences,
+  runtimeBytecodeBytes,
+  runtimeBytecodeTemplateHash,
+} from "./ethereum_bytecode.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -45,12 +50,32 @@ export async function runReleasePreflight(config, root = process.cwd()) {
   const protocolArtifact = JSON.parse(protocolArtifactRaw);
   const protocolAbi = JSON.parse(protocolAbiRaw);
   const releaseManifest = JSON.parse(releaseManifestRaw);
-  const protocolRuntimeBytecodeHash = keccak256(hardhatArtifact.deployedBytecode);
+  const protocolImmutableReferences = canonicalImmutableReferences(hardhatArtifact.immutableReferences);
+  const protocolRuntimeBytecodeTemplateHash = runtimeBytecodeTemplateHash(
+    hardhatArtifact.deployedBytecode,
+    protocolImmutableReferences,
+  );
+  const protocolCreationBytecodeHash = keccak256(hardhatArtifact.bytecode);
+  if (protocolArtifact.schemaVersion !== 2) {
+    throw new Error("Generated protocol artifact must use schemaVersion 2");
+  }
   if (
-    protocolArtifact.contracts?.NakamaCoverageProtocol?.runtimeBytecodeHash !==
-    protocolRuntimeBytecodeHash
+    protocolArtifact.contracts?.NakamaCoverageProtocol?.runtimeBytecodeTemplateHash !==
+    protocolRuntimeBytecodeTemplateHash
   ) {
-    throw new Error("Generated protocol artifact is stale relative to the Hardhat runtime bytecode");
+    throw new Error("Generated protocol artifact template is stale relative to the Hardhat runtime bytecode");
+  }
+  if (
+    JSON.stringify(protocolArtifact.contracts?.NakamaCoverageProtocol?.immutableReferences)
+      !== JSON.stringify(protocolImmutableReferences)
+  ) {
+    throw new Error("Generated protocol artifact immutable references are stale");
+  }
+  if (
+    protocolArtifact.contracts?.NakamaCoverageProtocol?.creationBytecodeHash
+      !== protocolCreationBytecodeHash
+  ) {
+    throw new Error("Generated protocol artifact creation bytecode hash is stale");
   }
   if (
     JSON.stringify(protocolAbi)
@@ -64,17 +89,20 @@ export async function runReleasePreflight(config, root = process.cwd()) {
   }
   const protocolArtifactSha256 = createHash("sha256").update(protocolArtifactRaw).digest("hex");
   validateReleaseManifest(config, releaseManifest, {
-    protocolRuntimeBytecodeHash,
+    protocolCreationBytecodeHash,
+    protocolRuntimeBytecodeTemplateHash,
     protocolArtifactSha256,
   });
 
   return {
     headCommit: headCommit.trim(),
-    protocolRuntimeBytecodeHash,
+    protocolRuntimeBytecodeTemplateHash,
+    protocolImmutableReferences,
+    protocolCreationBytecodeHash,
     protocolArtifactSha256,
     protocolAbi,
     protocolAbiSha256,
-    runtimeBytecodeBytes: (hardhatArtifact.deployedBytecode.length - 2) / 2,
+    runtimeBytecodeBytes: runtimeBytecodeBytes(hardhatArtifact.deployedBytecode),
     releaseManifest,
   };
 }

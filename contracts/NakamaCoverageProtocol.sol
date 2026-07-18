@@ -26,6 +26,8 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
     uint64 public constant MAX_CHALLENGE_WINDOW = 30 days;
     uint16 public constant MIN_ATTESTERS = 3;
     uint16 public constant MAX_ATTESTERS = 31;
+    uint256 private constant VIRTUAL_ASSETS = 1;
+    uint256 private constant VIRTUAL_SHARES = 1_000_000;
 
     bytes32 public constant CLAIM_RECIPIENT_TYPEHASH =
         keccak256("ClaimRecipient(bytes32 claimId,address recipient,uint256 nonce,uint256 deadline)");
@@ -62,8 +64,9 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
     error NullifierAlreadyUsed(bytes32 nullifier);
     error SignatureExpired();
     error InvalidSignature();
-    error NoFreeEquity();
     error ZeroShares();
+    error SlippageExceeded(uint256 minimum, uint256 actual);
+    error RecapitalizationExceedsDeficit(uint256 deficit, uint256 amount);
     error InsufficientShares(uint256 available, uint256 requested);
     error VaultInsolvent(uint256 accounted, uint256 actual);
 
@@ -429,7 +432,7 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         _fundLine(lineId, msg.sender, amount, referenceCommitment);
     }
 
-    function depositReserveCapital(bytes32 lineId, uint256 amount, bytes32 termsCommitment)
+    function depositReserveCapital(bytes32 lineId, uint256 amount, uint256 minShares, bytes32 termsCommitment)
         external
         nonReentrant
         returns (uint256 shares)
@@ -439,14 +442,9 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         if (amount == 0) revert InvalidAmount();
 
         uint256 totalShares = totalContributorShares[lineId];
-        uint256 equityBefore = _lineSheets[lineId].freeAssets();
-        if (totalShares == 0) {
-            shares = amount;
-        } else {
-            if (equityBefore == 0) revert NoFreeEquity();
-            shares = Math.mulDiv(amount, totalShares, equityBefore, Math.Rounding.Floor);
-        }
+        shares = _convertToShares(lineId, amount);
         if (shares == 0 || shares > uint256(type(int256).max)) revert ZeroShares();
+        if (shares < minShares) revert SlippageExceeded(minShares, shares);
 
         totalContributorShares[lineId] = totalShares + shares;
         contributorShares[lineId][msg.sender] += shares;
@@ -459,11 +457,25 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         nonReentrant
     {
         _requireLineType(lineId, ProtocolTypes.FundingLineType.Backstop);
-        if (totalContributorShares[lineId] == 0) revert NoFreeEquity();
+        if (totalContributorShares[lineId] == 0) revert ZeroShares();
         _fundLine(lineId, msg.sender, amount, referenceCommitment);
     }
 
-    function withdrawReserveCapital(bytes32 lineId, uint256 shares, address recipient)
+    /// @notice Permissionlessly cures an already-finalized funding-line deficit
+    /// without reopening controller-gated intake or minting contributor shares.
+    function recapitalizeLine(bytes32 lineId, uint256 amount, bytes32 referenceCommitment)
+        external
+        nonReentrant
+    {
+        ProtocolTypes.FundingLine storage line_ = _requireLine(lineId);
+        ProtocolTypes.BalanceSheet storage sheet = _lineSheets[lineId];
+        if (sheet.owed <= sheet.funded) revert InvalidState();
+        uint256 deficit = sheet.owed - sheet.funded;
+        if (amount > deficit) revert RecapitalizationExceedsDeficit(deficit, amount);
+        _fundLineExact(line_, lineId, msg.sender, amount, referenceCommitment, false);
+    }
+
+    function withdrawReserveCapital(bytes32 lineId, uint256 shares, uint256 minAssets, address recipient)
         external
         nonReentrant
         returns (uint256 assets)
@@ -475,9 +487,9 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         uint256 ownedShares = contributorShares[lineId][msg.sender];
         if (shares > ownedShares) revert InsufficientShares(ownedShares, shares);
         uint256 totalShares = totalContributorShares[lineId];
-        uint256 freeAssets = _lineSheets[lineId].freeAssets();
-        assets = Math.mulDiv(shares, freeAssets, totalShares, Math.Rounding.Floor);
+        assets = _convertToAssets(lineId, shares);
         if (assets == 0 || shares > uint256(type(int256).max)) revert ZeroShares();
+        if (assets < minAssets) revert SlippageExceeded(minAssets, assets);
 
         contributorShares[lineId][msg.sender] = ownedShares - shares;
         totalContributorShares[lineId] = totalShares - shares;
@@ -795,10 +807,17 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         return _lineSheets[lineId].freeAssets();
     }
 
+    function contributorDepositQuote(bytes32 lineId, uint256 assets) external view returns (uint256) {
+        _requireLine(lineId);
+        if (assets == 0) return 0;
+        return _convertToShares(lineId, assets);
+    }
+
     function contributorExitQuote(bytes32 lineId, uint256 shares) external view returns (uint256) {
         uint256 totalShares = totalContributorShares[lineId];
         if (shares == 0 || totalShares == 0 || shares > totalShares) return 0;
-        return Math.mulDiv(shares, freeLineAssets(lineId), totalShares, Math.Rounding.Floor);
+        _requireLine(lineId);
+        return _convertToAssets(lineId, shares);
     }
 
     function vaultCoverage(bytes32 domainId, address assetToken)
@@ -826,11 +845,24 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
     // ---------------------------------------------------------------------
 
     function _fundLine(bytes32 lineId, address payer, uint256 amount, bytes32 referenceCommitment) private {
+        ProtocolTypes.FundingLine storage line_ = _requireLineIntakeOpen(lineId);
+        _fundLineExact(line_, lineId, payer, amount, referenceCommitment, true);
+    }
+
+    function _fundLineExact(
+        ProtocolTypes.FundingLine storage line_,
+        bytes32 lineId,
+        address payer,
+        uint256 amount,
+        bytes32 referenceCommitment,
+        bool enforceCapitalCap
+    ) private {
         if (amount == 0) revert InvalidAmount();
         if (referenceCommitment == bytes32(0)) revert InvalidCommitment();
-        ProtocolTypes.FundingLine storage line_ = _requireLineIntakeOpen(lineId);
         uint256 nextFunded = _lineSheets[lineId].funded + amount;
-        if (nextFunded > line_.capitalCap) revert CapitalCapExceeded(line_.capitalCap, nextFunded);
+        if (enforceCapitalCap && nextFunded > line_.capitalCap) {
+            revert CapitalCapExceeded(line_.capitalCap, nextFunded);
+        }
 
         line_.grossFunded += amount;
         bytes32 planId = line_.planId;
@@ -903,24 +935,60 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         bytes32 planId = line_.planId;
         bytes32 domainId = _plans[planId].domainId;
         _lineSheets[lineId].bookReservation(amount);
-        _planSheets[planId][line_.assetToken].bookReservation(amount);
-        _domainSheets[domainId][line_.assetToken].bookReservation(amount);
+        _planSheets[planId][line_.assetToken].recordAggregateReservation(amount);
+        _domainSheets[domainId][line_.assetToken].recordAggregateReservation(amount);
     }
 
     function _bookSettlement(ProtocolTypes.FundingLine storage line_, bytes32 lineId, uint256 amount) private {
         bytes32 planId = line_.planId;
         bytes32 domainId = _plans[planId].domainId;
         _lineSheets[lineId].bookSettlement(amount);
-        _planSheets[planId][line_.assetToken].bookSettlement(amount);
-        _domainSheets[domainId][line_.assetToken].bookSettlement(amount);
+        _planSheets[planId][line_.assetToken].recordAggregateSettlement(amount);
+        _domainSheets[domainId][line_.assetToken].recordAggregateSettlement(amount);
     }
 
     function _bookWithdrawal(ProtocolTypes.FundingLine storage line_, bytes32 lineId, uint256 amount) private {
         bytes32 planId = line_.planId;
         bytes32 domainId = _plans[planId].domainId;
         _lineSheets[lineId].bookWithdrawal(amount);
-        _planSheets[planId][line_.assetToken].bookWithdrawal(amount);
-        _domainSheets[domainId][line_.assetToken].bookWithdrawal(amount);
+        _planSheets[planId][line_.assetToken].recordAggregateWithdrawal(amount);
+        _domainSheets[domainId][line_.assetToken].recordAggregateWithdrawal(amount);
+    }
+
+    function _convertToShares(bytes32 lineId, uint256 assets) private view returns (uint256) {
+        ProtocolTypes.BalanceSheet storage sheet = _lineSheets[lineId];
+        uint256 totalShares = totalContributorShares[lineId];
+        uint256 pricingEquity;
+        if (totalShares == 0) {
+            if (sheet.owed != 0 || sheet.pendingClaims != 0 || sheet.reserved != 0) {
+                revert InvalidState();
+            }
+            // A virtual-share residual can remain after the last honest exit.
+            // Pricing the restart against that accounted residual prevents the
+            // new depositor from capturing it while keeping the line live.
+            pricingEquity = sheet.funded;
+        } else {
+            // Pending claims are reversible and therefore cannot temporarily
+            // cheapen new shares before a denial or partial approval releases
+            // their encumbrance. Finalized owed liabilities remain deducted.
+            if (sheet.funded <= sheet.owed) revert InvalidState();
+            pricingEquity = sheet.funded - sheet.owed;
+        }
+        return Math.mulDiv(
+            assets,
+            totalShares + VIRTUAL_SHARES,
+            pricingEquity + VIRTUAL_ASSETS,
+            Math.Rounding.Floor
+        );
+    }
+
+    function _convertToAssets(bytes32 lineId, uint256 shares) private view returns (uint256) {
+        return Math.mulDiv(
+            shares,
+            _lineSheets[lineId].freeAssets() + VIRTUAL_ASSETS,
+            totalContributorShares[lineId] + VIRTUAL_SHARES,
+            Math.Rounding.Floor
+        );
     }
 
     function _vaultForLine(ProtocolTypes.FundingLine storage line_) private view returns (address) {

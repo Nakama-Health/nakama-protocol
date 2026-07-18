@@ -5,6 +5,12 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { keccak256 } from "ethers";
 
+import {
+  canonicalImmutableReferences,
+  runtimeBytecodeBytes,
+  runtimeBytecodeTemplateHash,
+} from "./lib/ethereum_bytecode.mjs";
+
 const root = process.cwd();
 const outputPath = resolve(root, "shared/ethereum/protocol_contract.json");
 const protocolAbiOutputPath = resolve(root, "shared/ethereum/NakamaCoverageProtocol.abi.json");
@@ -21,19 +27,24 @@ let protocolAbiGenerated = "";
 for (const [name, path] of Object.entries(artifactPaths)) {
   const artifact = JSON.parse(await readFile(path, "utf8"));
   const standaloneAbi = `${JSON.stringify(artifact.abi, null, 2)}\n`;
+  const immutableReferences = canonicalImmutableReferences(artifact.immutableReferences);
   contracts[name] = {
     abi: artifact.abi,
     abiSha256: createHash("sha256").update(standaloneAbi).digest("hex"),
     creationBytecodeHash: keccak256(artifact.bytecode),
-    runtimeBytecodeHash: keccak256(artifact.deployedBytecode),
-    runtimeBytecodeBytes: (artifact.deployedBytecode.length - 2) / 2,
+    runtimeBytecodeTemplateHash: runtimeBytecodeTemplateHash(
+      artifact.deployedBytecode,
+      immutableReferences,
+    ),
+    runtimeBytecodeBytes: runtimeBytecodeBytes(artifact.deployedBytecode),
+    immutableReferences,
   };
   if (name === "NakamaCoverageProtocol") protocolAbiGenerated = standaloneAbi;
 }
 
 const generated = `${JSON.stringify(
   {
-    schemaVersion: 1,
+    schemaVersion: 2,
     chainFamily: "eip155",
     canonicalChain: "eip155:1",
     compiler: {

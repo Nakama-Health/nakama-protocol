@@ -166,7 +166,7 @@ Read the canonical design set first:
 - [`tests/`](./tests/) contains the fast Node-based scenario suite
 - [`e2e/`](./e2e/) contains the heavier localnet audit entrypoint
 - [`scripts/`](./scripts/) contains artifact generation and devnet migration helpers
-- [`idl/`](./idl/), [`shared/`](./shared/), and [`frontend/lib/generated/`](./frontend/lib/generated/) contain checked-in generated contract artifacts, including the canonical Ethereum ABI and runtime hashes
+- [`idl/`](./idl/), [`shared/`](./shared/), and [`frontend/lib/generated/`](./frontend/lib/generated/) contain checked-in generated contract artifacts, including the canonical Ethereum ABI, creation hash, normalized runtime-template hash, and immutable byte ranges
 
 ## Quick Start
 
@@ -193,7 +193,7 @@ npm run ethereum:contract
 
 `npm run ethereum:deploy:preflight` is the read-only release check. It deliberately fails until an independent audit and explicit release approval are bound to an operator-local manifest; do not run the transaction-producing mainnet command as a development smoke test.
 
-Deployment output remains explicitly unverified until the source-verification evidence and exact SDK ABI pass `npm run ethereum:manifest:promote`; the final public shape is machine-defined in [`deployments/ethereum-mainnet.final.schema.json`](./deployments/ethereum-mainnet.final.schema.json).
+Deployment output remains explicitly unverified until `ethereum:manifest:promote` independently validates the canonical finalized chain receipt, live runtime, fixed Sourcify v2 exact match, and exact SDK ABI; the final public shape is machine-defined in [`deployments/ethereum-mainnet.final.schema.json`](./deployments/ethereum-mainnet.final.schema.json).
 
 Regenerate the canonical onchain artifacts:
 
