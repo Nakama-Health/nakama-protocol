@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "status": "unconfigured",
+  "chainId": 1,
+  "caip2": "eip155:1",
+  "contractName": "NakamaCoverageProtocol",
+  "protocolAddress": null,
+  "deployer": null,
+  "deploymentTransaction": null,
+  "deploymentBlock": null,
+  "confirmations": null,
+  "sourceCommit": null,
+  "runtimeBytecodeHash": null,
+  "abiArtifact": "shared/ethereum/protocol_contract.json",
+  "verified": false,
+  "auditStatus": "unaudited"
+}

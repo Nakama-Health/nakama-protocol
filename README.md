@@ -4,6 +4,8 @@ Nakama Protocol's current launch job is concrete: help a sponsor fund Travel 30 
 
 Plainly: a sponsor can fund a protected group, see what backs the promise, and audit what happened when a claim is reviewed or paid.
 
+This branch adds an immutable Ethereum mainnet implementation candidate with domain-isolated ERC-20 vaults, contributor-controlled exits, commitment-based claims, strict-majority attestation, one challenge round, and permissionless finalization and settlement. It is pre-mainnet and unaudited: no Ethereum address or deployment transaction is configured, and the existing Solana devnet program remains the currently deployed beta until an audited migration is explicitly completed.
+
 The current public launch reference is Genesis Protect Acute. `Travel 30` is the primary Founder SKU: a 100-seat cohort where 99 USDC reserves access to a reserve-indexed 30-day travel cap targeting up to 250,000 USDC at activation, unlocked only when the posted claims-paying reserve/backstop reaches the required threshold and final terms are ready. `Event 7` is the short-window cohort/demo SKU, with a 7-day window and a 3,000 USDC fixed-benefit cap. Both remain bounded launch surfaces: reservations are not active cover today, pending custody is not claims-paying reserve, this is not comprehensive travel insurance, and Phase 0 claim review is operator-backed rather than fully decentralized.
 
 On Solana devnet beta today, the public surface in this repository can already anchor:
@@ -11,6 +13,18 @@ On Solana devnet beta today, the public surface in this repository can already a
 - sponsor-funded reward or protection lanes with explicit reserve and funding-line attribution
 - contributor-signed backstop deposits with on-chain contribution/return balances
 - operator-mediated member enrollment, claim intake, obligations, reserve booking, and payouts
+
+## Ethereum Implementation Candidate
+
+The Solidity 0.8.28 surface is immutable by design: it has no proxy, global owner, global pause, or arbitrary controller-created payout. Scope-local controllers can stop new activity, but existing claims, contributor exits from unencumbered equity, finalization, reservation, and settlement remain available.
+
+The canonical machine-readable interface is [`shared/ethereum/protocol_contract.json`](./shared/ethereum/protocol_contract.json). The checked-in deployment example stays `unconfigured`; clients must not infer a mainnet address from the presence of compiled contracts.
+
+Start with:
+
+- [Ethereum Mainnet Protocol Vertical Slice](./docs/architecture/ethereum-mainnet-protocol.md)
+- [Ethereum CROPS and Walkaway Review](./docs/security/ethereum-crops-walkaway.md)
+- [`deployments/ethereum-mainnet.example.json`](./deployments/ethereum-mainnet.example.json)
 
 ## Start Here
 
@@ -146,12 +160,13 @@ Read the canonical design set first:
 
 ## Repository Layout
 
+- [`contracts/`](./contracts/) contains the immutable Ethereum protocol, isolated reserve vault, accounting library, and test tokens
 - [`programs/nakama_coverage_protocol/`](./programs/nakama_coverage_protocol/) contains the onchain Anchor program
 - [`frontend/`](./frontend/) contains the public protocol console and deterministic read models
 - [`tests/`](./tests/) contains the fast Node-based scenario suite
 - [`e2e/`](./e2e/) contains the heavier localnet audit entrypoint
 - [`scripts/`](./scripts/) contains artifact generation and devnet migration helpers
-- [`idl/`](./idl/), [`shared/`](./shared/), and [`frontend/lib/generated/`](./frontend/lib/generated/) contain checked-in generated contract artifacts
+- [`idl/`](./idl/), [`shared/`](./shared/), and [`frontend/lib/generated/`](./frontend/lib/generated/) contain checked-in generated contract artifacts, including the canonical Ethereum ABI and runtime hashes
 
 ## Quick Start
 
@@ -161,6 +176,24 @@ Install dependencies:
 npm ci
 npm --prefix frontend ci
 ```
+
+Build and test the Ethereum implementation candidate:
+
+```bash
+npm run ethereum:build
+npm run ethereum:test
+npm run ethereum:contract:check
+```
+
+Regenerate the canonical Ethereum artifact after a Solidity change:
+
+```bash
+npm run ethereum:contract
+```
+
+`npm run ethereum:deploy:preflight` is the read-only release check. It deliberately fails until an independent audit and explicit release approval are bound to an operator-local manifest; do not run the transaction-producing mainnet command as a development smoke test.
+
+Deployment output remains explicitly unverified until the source-verification evidence and exact SDK ABI pass `npm run ethereum:manifest:promote`; the final public shape is machine-defined in [`deployments/ethereum-mainnet.final.schema.json`](./deployments/ethereum-mainnet.final.schema.json).
 
 Regenerate the canonical onchain artifacts:
 
@@ -265,6 +298,8 @@ The fast suite now focuses on the scenarios that matter to the redesign:
 
 ## Documentation Map
 
+- [Ethereum Mainnet Protocol Vertical Slice](./docs/architecture/ethereum-mainnet-protocol.md)
+- [Ethereum CROPS and Walkaway Review](./docs/security/ethereum-crops-walkaway.md)
 - [Solana Program Architecture](./docs/architecture/solana-program-architecture.md)
 - [Solana Instruction Map](./docs/architecture/solana-instruction-map.md)
 - [Repository Layout](./docs/architecture/repository-layout.md)

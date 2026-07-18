@@ -28,6 +28,7 @@ This path is intentionally launch-truth-first: `Travel 30` is the primary reserv
 ### Architecture
 
 - [Repository Layout](./architecture/repository-layout.md)
+- [Ethereum Mainnet Protocol Vertical Slice](./architecture/ethereum-mainnet-protocol.md) — immutable contract boundary, reserve accounting, claim finality, integration, and release gate
 - [Protocol Vision and Capability Narrative](./architecture/protocol-vision-and-capability-narrative.md)
 - [Solana Program Architecture](./architecture/solana-program-architecture.md)
 - [Solana Instruction Map](./architecture/solana-instruction-map.md)
@@ -68,6 +69,7 @@ This path is intentionally launch-truth-first: `Travel 30` is the primary reserv
 
 ### Security
 
+- [Ethereum CROPS and Walkaway Review](./security/ethereum-crops-walkaway.md) — mandate alignment, trust boundaries, honest decentralization limits, and mainnet release conditions
 - [Mainnet Privileged-Role Controls](./security/mainnet-privileged-role-controls.md) — role matrix, multisig requirement, break-glass exception, rotation, incident recovery
 - [Pre-Mainnet Pen-Test (2026-04-27)](./security/pre-mainnet-pen-test-2026-04-27.md)
 
@@ -94,6 +96,8 @@ This path is intentionally launch-truth-first: `Travel 30` is the primary reserv
 - Use [Nakama Docs](https://docs.nakama.health/docs) when you want the polished public overview, product story, and external documentation hub rather than repo-specific workflow details.
 - Use [Why Nakama](https://docs.nakama.health/docs/thesis/why-nakama) when you need the clearest public statement of the protocol’s purpose and long-range destination.
 - Use [Protocol Vision and Capability Narrative](./architecture/protocol-vision-and-capability-narrative.md) when you need the repo-local explanation of the trimmed protocol vision, current accounts, current functions, and community-owned coverage narrative.
+- Use [Ethereum Mainnet Protocol Vertical Slice](./architecture/ethereum-mainnet-protocol.md) for the Solidity contract graph, reserve ledger, claim lifecycle, canonical ABI, and immutable deployment boundary.
+- Use [Ethereum CROPS and Walkaway Review](./security/ethereum-crops-walkaway.md) when evaluating censorship resistance, open-source reproducibility, privacy, security, or the limits of the current decentralization claim.
 - Start with [Repository Layout](./architecture/repository-layout.md) if you are new to the repo and need the internal file map.
 - Use [Solana Program Architecture](./architecture/solana-program-architecture.md) to understand the on-chain program layout and reviewer read order.
 - Use [Solana Instruction Map](./architecture/solana-instruction-map.md) when tracing an instruction from entrypoint to handler, accounts, and helpers.

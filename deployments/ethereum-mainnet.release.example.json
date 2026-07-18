@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "status": "not-approved",
+  "sourceCommit": null,
+  "auditReportSha256": null,
+  "releaseApprovalSha256": null,
+  "protocolRuntimeBytecodeHash": null,
+  "protocolArtifactSha256": null,
+  "independentAuditCompleted": false,
+  "releaseApproved": false
+}

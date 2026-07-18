@@ -5,6 +5,7 @@ target
 *.pdb
 .anchor/
 artifacts/
+types/
 test-ledger/
 output/
 
@@ -55,6 +56,11 @@ frontend/apphosting.*.local.yaml
 tmp/
 *.log
 strategy/
+
+# Operator-local Ethereum release approval (the tracked example remains inert)
+deployments/ethereum-mainnet.release.json
+deployments/ethereum-mainnet.verification.json
+deployments/ethereum-mainnet.pending.json
 
 # Private internal research data
 /internal-db/

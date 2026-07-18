@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "status": "not-verified",
+  "chainId": 1,
+  "caip2": "eip155:1",
+  "contractName": "NakamaCoverageProtocol",
+  "protocolAddress": null,
+  "deploymentTransaction": null,
+  "sourceCommit": null,
+  "runtimeBytecodeHash": null,
+  "verificationProvider": null,
+  "verificationUrl": null,
+  "verifiedAt": null
+}
