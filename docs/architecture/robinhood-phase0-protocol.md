@@ -21,12 +21,26 @@ The sponsor must submit the deployment transaction; operator-only deployment
 is rejected before CREATE2, preventing unauthorized sponsor attribution and
 salt consumption in the public registry.
 
+The current candidate is major suite version 2. Prediction and deployment both
+require that major version and reject every zero role, every prohibited role
+overlap, and any suite infrastructure contract used as an operating role.
+Sponsor, operator, both reviewers, settlement, and guardian remain distinct;
+the eligibility attestor may equal sponsor or operator but no protected review,
+settlement, or guardian role. Compatible smart accounts remain allowed.
+
 Agent authorization is deliberately narrower than execution. The registry
 stores operator-issued policy and consumption counters, while a separately
 reviewed adapter authenticates the principal and reports the selector and
 value. The registry cannot observe adapter side effects, so every program
 module, privileged role, the factory, and USDG are forbidden targets and no
 adapter is safe merely because a grant exists.
+
+A failed EVM transaction cannot preserve its own log, so
+`consumeAuthorization` continues to revert without pretending its
+`AuthorizationBlocked` event survived. A reviewed target adapter can submit a
+separate `recordBlockedAttempt` transaction after a failed simulation or
+execution. The registry emits telemetry only if the same grant check is still
+blocked; the path cannot consume, grant, execute, or change a limit.
 
 Request evidence versions are frozen while a decision is pending, appealed,
 or escalated. A member can advance the evidence commitment only after the
@@ -52,6 +66,22 @@ sum of per-member, pending-request, and obligation mappings after each action.
 These checks improve regression confidence but do not replace formal
 verification, a long-running invariant fuzzer, a current USDG assessment, or an
 external audit.
+
+`PoolVault` emits the major-version-2 canonical `EconomicActivity` event after
+each successful accounting mutation. Every record contains the program, exact
+asset, signed amount, direct vault actor, beneficiary, activity and related IDs,
+and the complete resulting aggregate ledger. The test harness replays real logs
+into an independent model and compares every post-state snapshot to contract
+reads. Eight deterministic seeds with sixteen state transitions each provide a
+bounded stateful invariant-fuzz lane; long-running independent fuzzing and
+formal verification remain external gates.
+
+Local incident exercises cover lost reviewer and settlement signer behavior,
+agent compromise, USDG transfer freeze, contract-bug containment, and an outage
+time jump. They prove fail-closed local behavior but do not prove live chain
+liveness, threshold-account recovery, USDG issuer recovery, or on-call
+execution. The evidence boundary is documented in
+[`../operations/robinhood-phase0-incident-exercises.md`](../operations/robinhood-phase0-incident-exercises.md).
 
 Program caps cannot exceed the largest signed event delta, and appeal or
 decision windows cannot exceed 365 days. `ClaimManager` also checks every

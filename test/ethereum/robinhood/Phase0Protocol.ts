@@ -7,7 +7,7 @@ const DAY = 86_400n;
 const USDG = 1_000_000n;
 const PER_MEMBER_CAP = 1_000n * USDG;
 const AGGREGATE_CAP = 5_000n * USDG;
-const suiteId = ethers.id("NAKAMA_ROBINHOOD_PHASE0_1.0.0");
+const suiteId = ethers.id("NAKAMA_ROBINHOOD_PHASE0_2.0.0");
 const commitment = (value: string) =>
   ethers.keccak256(ethers.toUtf8Bytes(value));
 
@@ -117,7 +117,7 @@ async function deployFixture({
     .registerSuite(
       suiteId,
       await factory.getAddress(),
-      1,
+      2,
       0,
       0,
       await factory.deploymentCodeCommitment(),
@@ -531,6 +531,131 @@ async function assertVaultInvariants(
   expect(await fixture.vault.reconciled()).to.equal(true);
 }
 
+async function assertEconomicEventReplay(fixture: Fixture) {
+  const logs = await fixture.vault.queryFilter(
+    fixture.vault.filters.EconomicActivity()
+  );
+  const state = {
+    sponsorFunded: 0n,
+    settled: 0n,
+    sponsorRefunded: 0n,
+    maximumRemainingMemberLiability: 0n,
+    pendingRequestReservation: 0n,
+    approvedUnpaidObligations: 0n,
+    maturedRefunds: 0n,
+  };
+  const memberRemaining = new Map<string, bigint>();
+  const pending = new Map<string, bigint>();
+  const obligations = new Map<string, bigint>();
+  const kinds: number[] = [];
+
+  for (const log of logs) {
+    if (!("args" in log))
+      throw new Error("EconomicActivity log was not decoded.");
+    const args = log.args;
+    const kind = Number(args.kind);
+    const amount = args.amount as bigint;
+    const activityId = args.activityId as string;
+    const relatedId = args.relatedId as string;
+    kinds.push(kind);
+
+    expect(args.programId).to.equal(fixture.predicted.programId);
+    expect(args.asset).to.equal(await fixture.token.getAddress());
+    expect(args.actor).not.to.equal(ethers.ZeroAddress);
+    expect(activityId).not.to.equal(ethers.ZeroHash);
+
+    if (kind === 1) {
+      state.sponsorFunded += amount;
+    } else if (kind === 2) {
+      memberRemaining.set(activityId, amount);
+      state.maximumRemainingMemberLiability += amount;
+    } else if (kind === 3) {
+      memberRemaining.set(
+        activityId,
+        (memberRemaining.get(activityId) ?? 0n) + amount
+      );
+      state.maximumRemainingMemberLiability += amount;
+    } else if (kind === 4) {
+      pending.set(activityId, amount);
+      state.pendingRequestReservation += amount;
+    } else if (kind === 5) {
+      expect(relatedId).not.to.equal(ethers.ZeroHash);
+      const reserved = pending.get(activityId);
+      expect(reserved).to.equal(-amount);
+      pending.delete(activityId);
+      state.pendingRequestReservation += amount;
+    } else if (kind === 6) {
+      expect(relatedId).not.to.equal(ethers.ZeroHash);
+      const reserved = pending.get(activityId);
+      if (reserved === undefined) {
+        throw new Error(`Missing pending reservation for ${activityId}.`);
+      }
+      pending.delete(activityId);
+      state.pendingRequestReservation -= reserved;
+      memberRemaining.set(
+        relatedId,
+        (memberRemaining.get(relatedId) ?? 0n) - amount
+      );
+      state.maximumRemainingMemberLiability -= amount;
+      obligations.set(activityId, amount);
+      state.approvedUnpaidObligations += amount;
+    } else if (kind === 7) {
+      const obligation = obligations.get(activityId);
+      expect(obligation).to.equal(-amount);
+      obligations.delete(activityId);
+      state.approvedUnpaidObligations += amount;
+      state.settled -= amount;
+    } else if (kind === 8) {
+      state.maturedRefunds += amount;
+    } else if (kind === 9) {
+      state.maturedRefunds += amount;
+      state.sponsorRefunded -= amount;
+    } else {
+      throw new Error(`Unknown EconomicActivity kind ${kind}.`);
+    }
+
+    const trackedAssets =
+      state.sponsorFunded - state.settled - state.sponsorRefunded;
+    const encumberedAssets =
+      state.maximumRemainingMemberLiability +
+      state.approvedUnpaidObligations +
+      state.maturedRefunds;
+    expect(args.sponsorFunded).to.equal(state.sponsorFunded);
+    expect(args.settled).to.equal(state.settled);
+    expect(args.sponsorRefunded).to.equal(state.sponsorRefunded);
+    expect(args.maximumRemainingMemberLiability).to.equal(
+      state.maximumRemainingMemberLiability
+    );
+    expect(args.pendingRequestReservation).to.equal(
+      state.pendingRequestReservation
+    );
+    expect(args.approvedUnpaidObligations).to.equal(
+      state.approvedUnpaidObligations
+    );
+    expect(args.maturedRefunds).to.equal(state.maturedRefunds);
+    expect(args.trackedAssets).to.equal(trackedAssets);
+    expect(args.encumberedAssets).to.equal(encumberedAssets);
+  }
+
+  expect(new Set(kinds)).to.deep.equal(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]));
+  expect(pending.size).to.equal(0);
+  expect(obligations.size).to.equal(0);
+  const accounting = await fixture.vault.accounting();
+  expect(accounting.sponsorFunded).to.equal(state.sponsorFunded);
+  expect(accounting.settled).to.equal(state.settled);
+  expect(accounting.sponsorRefunded).to.equal(state.sponsorRefunded);
+  expect(accounting.maximumRemainingMemberLiability).to.equal(
+    state.maximumRemainingMemberLiability
+  );
+  expect(accounting.pendingRequestReservation).to.equal(
+    state.pendingRequestReservation
+  );
+  expect(accounting.approvedUnpaidObligations).to.equal(
+    state.approvedUnpaidObligations
+  );
+  expect(accounting.maturedRefunds).to.equal(state.maturedRefunds);
+}
+
 describe("Robinhood Phase 0 protocol", function () {
   it("deploys deterministic immutable modules and registers the suite", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
@@ -579,7 +704,7 @@ describe("Robinhood Phase 0 protocol", function () {
         .registerSuite(
           commitment("suite-without-review"),
           await fixture.factory.getAddress(),
-          1,
+          2,
           0,
           1,
           await fixture.factory.deploymentCodeCommitment(),
@@ -659,6 +784,136 @@ describe("Robinhood Phase 0 protocol", function () {
     }
   });
 
+  it("validates every role separation and incompatible suite role before prediction or deployment", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+    const roleNames = [
+      "sponsor",
+      "operator",
+      "initialReviewer",
+      "appealReviewer",
+      "settlement",
+      "guardian",
+      "eligibilityAttestor",
+    ] as const;
+    const protectedPairs: Array<[number, number]> = [];
+    for (let second = 1; second < 6; second += 1) {
+      for (let first = 0; first < second; first += 1) {
+        protectedPairs.push([first, second]);
+      }
+    }
+    for (const first of [2, 3, 4, 5]) {
+      protectedPairs.push([first, 6]);
+    }
+
+    for (const [caseIndex, [first, second]] of protectedPairs.entries()) {
+      const roles = {
+        ...fixture.roles,
+        [roleNames[second]]: fixture.roles[roleNames[first]],
+      };
+      await expect(
+        fixture.factory.predictDeployment(
+          suiteId,
+          commitment(`duplicate-role-prediction-${caseIndex}`),
+          fixture.config,
+          roles,
+          fixture.bytecodes
+        )
+      )
+        .to.be.revertedWithCustomError(fixture.factory, "DuplicateRole")
+        .withArgs(first, second, fixture.roles[roleNames[first]]);
+    }
+
+    for (const [index, roleName] of roleNames.entries()) {
+      await expect(
+        fixture.factory.predictDeployment(
+          suiteId,
+          commitment(`zero-role-prediction-${index}`),
+          fixture.config,
+          { ...fixture.roles, [roleName]: ethers.ZeroAddress },
+          fixture.bytecodes
+        )
+      )
+        .to.be.revertedWithCustomError(fixture.factory, "InvalidRole")
+        .withArgs(index, ethers.ZeroAddress);
+    }
+
+    const incompatibleRoles = [
+      await fixture.token.getAddress(),
+      await fixture.factory.getAddress(),
+      await fixture.assetRegistry.getAddress(),
+      await fixture.templateRegistry.getAddress(),
+      await fixture.factory.poolRegistry(),
+      await fixture.factory.create2Deployer(),
+    ];
+    for (const [index, role] of incompatibleRoles.entries()) {
+      await expect(
+        fixture.factory.predictDeployment(
+          suiteId,
+          commitment(`incompatible-role-prediction-${index}`),
+          fixture.config,
+          { ...fixture.roles, settlement: role },
+          fixture.bytecodes
+        )
+      )
+        .to.be.revertedWithCustomError(fixture.factory, "InvalidRole")
+        .withArgs(4, role);
+    }
+
+    for (const [index, eligibilityAttestor] of [
+      fixture.roles.sponsor,
+      fixture.roles.operator,
+    ].entries()) {
+      const predicted = await fixture.factory.predictDeployment(
+        suiteId,
+        commitment(`permitted-attestor-overlap-${index}`),
+        fixture.config,
+        { ...fixture.roles, eligibilityAttestor },
+        fixture.bytecodes
+      );
+      expect(predicted.program).not.to.equal(ethers.ZeroAddress);
+    }
+
+    await expect(
+      fixture.factory
+        .connect(fixture.sponsor)
+        .deployProgram(
+          suiteId,
+          commitment("duplicate-role-deployment"),
+          fixture.config,
+          { ...fixture.roles, appealReviewer: fixture.roles.initialReviewer },
+          fixture.bytecodes
+        )
+    ).to.be.revertedWithCustomError(fixture.factory, "DuplicateRole");
+
+    const legacySuiteId = commitment("NAKAMA_ROBINHOOD_PHASE0_1.0.0");
+    await fixture.templateRegistry
+      .connect(fixture.governance)
+      .registerSuite(
+        legacySuiteId,
+        await fixture.factory.getAddress(),
+        1,
+        0,
+        0,
+        await fixture.factory.deploymentCodeCommitment(),
+        commitment("legacy-template"),
+        commitment("legacy-review")
+      );
+    await expect(
+      fixture.factory.predictDeployment(
+        legacySuiteId,
+        commitment("legacy-suite-prediction"),
+        fixture.config,
+        fixture.roles,
+        fixture.bytecodes
+      )
+    )
+      .to.be.revertedWithCustomError(
+        fixture.factory,
+        "IncompatibleSuiteVersion"
+      )
+      .withArgs(2, 1);
+  });
+
   it("rejects caps that cannot be represented by signed accounting events and unbounded review windows", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
     const invalidConfigs = [
@@ -695,10 +950,15 @@ describe("Robinhood Phase 0 protocol", function () {
     }
   });
 
-  it("runs a fully funded membership, request, decision, settlement, close, and refund", async function () {
+  it("reconstructs the complete economic ledger from canonical lifecycle events", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
     await fundAndOpenEnrollment(fixture);
     const membershipId = await activateMember(fixture);
+    const deniedMembershipId = await activateMember(
+      fixture,
+      fixture.memberTwo,
+      "event-replay-denied-member"
+    );
     expect(await fixture.vault.memberRemaining(membershipId)).to.equal(
       PER_MEMBER_CAP
     );
@@ -714,6 +974,26 @@ describe("Robinhood Phase 0 protocol", function () {
       opened.recipientSalt,
       signature
     );
+    const denied = await openRequest(
+      fixture,
+      deniedMembershipId,
+      fixture.memberTwo,
+      "event-replay-denied-request",
+      100n * USDG
+    );
+    const deniedDecision = await signedDecision(fixture, denied.requestId, {
+      action: 3,
+      amount: 0n,
+    });
+    await fixture.claims.executeInitialDecision(
+      deniedDecision.decision,
+      ethers.ZeroAddress,
+      ethers.ZeroHash,
+      deniedDecision.signature
+    );
+    const deniedRequest = await fixture.claims.request(denied.requestId);
+    await networkHelpers.time.increaseTo(deniedRequest.appealDeadline + 1n);
+    await fixture.claims.finalizeUnappealedDenial(denied.requestId);
     expect(
       (await fixture.vault.accounting()).approvedUnpaidObligations
     ).to.equal(opened.requestedAmount);
@@ -729,6 +1009,7 @@ describe("Robinhood Phase 0 protocol", function () {
     await networkHelpers.time.increaseTo(fixture.config.runoffAt);
     await fixture.program.enterRunoff();
     await fixture.membership.expireMembership(membershipId);
+    await fixture.membership.expireMembership(deniedMembershipId);
     await networkHelpers.time.increaseTo(fixture.config.closesAt);
     await fixture.program.close();
     const refund = AGGREGATE_CAP - opened.requestedAmount;
@@ -740,6 +1021,8 @@ describe("Robinhood Phase 0 protocol", function () {
       refund
     );
     expect(await fixture.vault.trackedAssets()).to.equal(0n);
+    expect(await fixture.vault.ECONOMIC_EVENT_SCHEMA_VERSION()).to.equal(2n);
+    await assertEconomicEventReplay(fixture);
   });
 
   it("closes enrollment at activeAt even if nobody advances the program state", async function () {
@@ -1884,8 +2167,13 @@ describe("Robinhood Phase 0 protocol", function () {
     ).to.equal(amounts.reduce((total, amount) => total + amount, 0n));
   });
 
-  it("preserves exact accounting across deterministic randomized lifecycle traces", async function () {
-    for (const seed of [0x1a2b3c4d, 0x51f15e, 0xc0ffee, 0xdeadbeef]) {
+  it("preserves exact accounting across bounded stateful invariant fuzz traces", async function () {
+    const seeds = [
+      0x1a2b3c4d, 0x51f15e, 0xc0ffee, 0xdeadbeef, 0x5eed1234, 0x31415926,
+      0x27182818, 0xabcdef01,
+    ];
+    const traceSteps = 16;
+    for (const seed of seeds) {
       const next = seededUint32(seed);
       const fixture = await deployFixture({
         fixtureLabel: `stateful-${seed.toString(16)}`,
@@ -1913,7 +2201,7 @@ describe("Robinhood Phase 0 protocol", function () {
       const unsettled: string[] = [];
       await assertVaultInvariants(fixture, membershipIds, requestIds, donation);
 
-      for (let step = 0; step < 12; step += 1) {
+      for (let step = 0; step < traceSteps; step += 1) {
         const remaining = await Promise.all(
           membershipIds.map((membershipId) =>
             fixture.vault.memberRemaining(membershipId)
@@ -2099,7 +2387,71 @@ describe("Robinhood Phase 0 protocol", function () {
       .settle(opened.requestId);
   });
 
-  it("records reviewed adapter consumption and rejects economic, suite, role, and asset targets", async function () {
+  it("contains lost reviewer and settlement signer incidents without releasing reserved value", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+    await fundAndOpenEnrollment(fixture);
+    const membershipId = await activateMember(fixture);
+    await activateProgram(fixture);
+
+    const lostReviewerRequest = await openRequest(
+      fixture,
+      membershipId,
+      fixture.member,
+      "lost-reviewer-request",
+      100n * USDG
+    );
+    const pendingBefore = await fixture.vault.pendingReservation(
+      lostReviewerRequest.requestId
+    );
+    const request = await fixture.claims.request(lostReviewerRequest.requestId);
+    await networkHelpers.time.increaseTo(request.decisionDeadline + 1n);
+    await fixture.claims.escalateNoQuorum(lostReviewerRequest.requestId);
+    expect(
+      (await fixture.claims.request(lostReviewerRequest.requestId)).state
+    ).to.equal(3n);
+    expect(
+      await fixture.vault.pendingReservation(lostReviewerRequest.requestId)
+    ).to.equal(pendingBefore);
+
+    const payableRequest = await openRequest(
+      fixture,
+      membershipId,
+      fixture.member,
+      "lost-settlement-signer-request",
+      200n * USDG
+    );
+    const approval = await signedDecision(fixture, payableRequest.requestId, {
+      amount: 200n * USDG,
+    });
+    await fixture.claims.executeInitialDecision(
+      approval.decision,
+      fixture.payoutRecipient.address,
+      payableRequest.recipientSalt,
+      approval.signature
+    );
+    const accountingBefore = await fixture.vault.accounting();
+    for (const unauthorized of [
+      fixture.sponsor,
+      fixture.operator,
+      fixture.guardian,
+    ]) {
+      await expect(
+        fixture.settlements
+          .connect(unauthorized)
+          .settle(payableRequest.requestId)
+      ).to.be.revertedWithCustomError(fixture.settlements, "Unauthorized");
+    }
+    const accountingAfter = await fixture.vault.accounting();
+    expect(accountingAfter.approvedUnpaidObligations).to.equal(
+      accountingBefore.approvedUnpaidObligations
+    );
+    expect(
+      await fixture.vault.obligationAmount(payableRequest.requestId)
+    ).to.equal(200n * USDG);
+    expect(await fixture.vault.reconciled()).to.equal(true);
+  });
+
+  it("revokes a compromised agent immediately and keeps blocked-attempt evidence durable", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
     const adapter = await ethers.deployContract("MockAuthorizedAdapter");
     const now = BigInt(await networkHelpers.time.latest());
@@ -2115,6 +2467,187 @@ describe("Robinhood Phase 0 protocol", function () {
       issuedAt: now,
       expiresAt: now + 3_600n,
       maxCallsPerPeriod: 10,
+      nonce: 0n,
+      purposeCommitment: commitment("compromised-agent-exercise"),
+    };
+    await fixture.authorizations
+      .connect(fixture.operator)
+      .grantAuthorization(grant);
+    const authorizationId = await fixture.authorizations.deriveAuthorizationId(
+      grant.principal,
+      grant.target,
+      grant.selector,
+      grant.nonce
+    );
+    const incidentId = commitment("compromised-agent-incident");
+    await fixture.safety
+      .connect(fixture.guardian)
+      .revokeAgentAuthorization(authorizationId, incidentId);
+    expect(await fixture.authorizations.revoked(authorizationId)).to.equal(
+      true
+    );
+    await expect(
+      adapter
+        .connect(fixture.outsider)
+        .perform(await fixture.authorizations.getAddress(), authorizationId)
+    ).to.be.revertedWithCustomError(
+      fixture.authorizations,
+      "AuthorizationNotActive"
+    );
+    await expect(
+      adapter.recordBlocked(
+        await fixture.authorizations.getAddress(),
+        authorizationId,
+        fixture.outsider.address
+      )
+    )
+      .to.emit(fixture.authorizations, "AuthorizationBlocked")
+      .withArgs(
+        fixture.predicted.programId,
+        authorizationId,
+        fixture.outsider.address,
+        await adapter.getAddress(),
+        grant.selector,
+        await fixture.authorizations.AUTHORIZATION_NOT_ACTIVE()
+      );
+  });
+
+  it("contains a USDG transfer freeze atomically and resumes only after explicit recovery", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+    await fundAndOpenEnrollment(fixture);
+    const membershipId = await activateMember(fixture);
+    await activateProgram(fixture);
+    const opened = await openRequest(fixture, membershipId);
+    const approval = await signedDecision(fixture, opened.requestId);
+    await fixture.claims.executeInitialDecision(
+      approval.decision,
+      fixture.payoutRecipient.address,
+      opened.recipientSalt,
+      approval.signature
+    );
+
+    await fixture.token.setTransfersPaused(true);
+    const before = await fixture.vault.accounting();
+    await expect(
+      fixture.settlements.connect(fixture.settlement).settle(opened.requestId)
+    ).to.be.revertedWith("USDG_TRANSFERS_PAUSED");
+    const afterFailure = await fixture.vault.accounting();
+    expect(afterFailure.settled).to.equal(before.settled);
+    expect(afterFailure.approvedUnpaidObligations).to.equal(
+      before.approvedUnpaidObligations
+    );
+    expect((await fixture.claims.request(opened.requestId)).state).to.equal(6n);
+
+    const dependencyId = commitment("USDG");
+    const incidentId = commitment("usdg-freeze-incident");
+    await fixture.safety
+      .connect(fixture.guardian)
+      .setDependencyWarning(
+        dependencyId,
+        true,
+        commitment("ASSET_TRANSFERS_FROZEN"),
+        incidentId
+      );
+    const now = BigInt(await networkHelpers.time.latest());
+    await fixture.safety
+      .connect(fixture.guardian)
+      .pause(4, incidentId, commitment("ASSET_INCIDENT"), now + 600n);
+    await fixture.token.setTransfersPaused(false);
+    await fixture.safety
+      .connect(fixture.operator)
+      .approveUnpauseAsOperator(4, incidentId);
+    await fixture.safety.connect(fixture.guardian).unpause(4, incidentId);
+    await fixture.safety
+      .connect(fixture.guardian)
+      .setDependencyWarning(
+        dependencyId,
+        false,
+        commitment("ASSET_RECOVERED"),
+        incidentId
+      );
+    await fixture.settlements
+      .connect(fixture.settlement)
+      .settle(opened.requestId);
+    expect((await fixture.claims.request(opened.requestId)).state).to.equal(8n);
+  });
+
+  it("keeps contract-bug and chain-outage pauses active past review until two-party recovery", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+    await fundAndOpenEnrollment(fixture);
+    const membershipId = await activateMember(fixture);
+    await activateProgram(fixture);
+    const opened = await openRequest(fixture, membershipId);
+    const approval = await signedDecision(fixture, opened.requestId);
+    const contractIncident = commitment("claim-contract-bug");
+    const now = BigInt(await networkHelpers.time.latest());
+    await fixture.safety
+      .connect(fixture.guardian)
+      .pause(3, contractIncident, commitment("CONTRACT_BUG"), now + 60n);
+    await expect(
+      fixture.claims.executeInitialDecision(
+        approval.decision,
+        fixture.payoutRecipient.address,
+        opened.recipientSalt,
+        approval.signature
+      )
+    ).to.be.revertedWithCustomError(fixture.claims, "InvalidState");
+    expect(await fixture.vault.pendingReservation(opened.requestId)).to.equal(
+      opened.requestedAmount
+    );
+
+    await networkHelpers.time.increaseTo(now + 120n);
+    expect(await fixture.safety.reviewRequired(3)).to.equal(true);
+    expect(await fixture.safety.isPaused(3)).to.equal(true);
+    await fixture.safety
+      .connect(fixture.operator)
+      .approveUnpauseAsOperator(3, contractIncident);
+    await fixture.safety.connect(fixture.guardian).unpause(3, contractIncident);
+    await fixture.claims.executeInitialDecision(
+      approval.decision,
+      fixture.payoutRecipient.address,
+      opened.recipientSalt,
+      approval.signature
+    );
+    expect(await fixture.vault.obligationAmount(opened.requestId)).to.equal(
+      opened.requestedAmount
+    );
+
+    const outageIncident = commitment("chain-outage-boundary");
+    const afterRecovery = BigInt(await networkHelpers.time.latest());
+    await fixture.safety
+      .connect(fixture.guardian)
+      .pause(
+        5,
+        outageIncident,
+        commitment("CHAIN_OUTAGE"),
+        afterRecovery + 60n
+      );
+    await networkHelpers.time.increaseTo(afterRecovery + 3_600n);
+    expect(await fixture.safety.reviewRequired(5)).to.equal(true);
+    expect(await fixture.safety.isPaused(5)).to.equal(true);
+    await fixture.safety
+      .connect(fixture.operator)
+      .approveUnpauseAsOperator(5, outageIncident);
+    await fixture.safety.connect(fixture.guardian).unpause(5, outageIncident);
+    expect(await fixture.safety.isPaused(5)).to.equal(false);
+  });
+
+  it("records reviewed adapter consumption and rejects economic, suite, role, and asset targets", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+    const adapter = await ethers.deployContract("MockAuthorizedAdapter");
+    const now = BigInt(await networkHelpers.time.latest());
+    const grant = {
+      principal: fixture.outsider.address,
+      target: await adapter.getAddress(),
+      selector: adapter.interface.getFunction("perform")!.selector,
+      maxNativeValue: 0n,
+      asset: ethers.ZeroAddress,
+      maxAssetAmountPerAction: 0n,
+      periodAssetLimit: 0n,
+      periodSeconds: 600n,
+      issuedAt: now,
+      expiresAt: now + 3_600n,
+      maxCallsPerPeriod: 1,
       nonce: 0n,
       purposeCommitment: commitment("evidence-completeness-assistance"),
     };
@@ -2145,6 +2678,29 @@ describe("Robinhood Phase 0 protocol", function () {
     ).to.equal(true);
 
     await expect(
+      adapter.recordBlocked(
+        await fixture.authorizations.getAddress(),
+        authorizationId,
+        fixture.outsider.address
+      )
+    ).to.be.revertedWithCustomError(
+      fixture.authorizations,
+      "AttemptIsAuthorized"
+    );
+
+    const blockedBefore = await fixture.authorizations.queryFilter(
+      fixture.authorizations.filters.AuthorizationBlocked()
+    );
+    await expect(
+      fixture.authorizations.recordBlockedAttempt(
+        authorizationId,
+        fixture.member.address,
+        grant.selector,
+        0,
+        0
+      )
+    ).to.be.revertedWithCustomError(fixture.authorizations, "Unauthorized");
+    await expect(
       adapter
         .connect(fixture.member)
         .perform(await fixture.authorizations.getAddress(), authorizationId)
@@ -2152,6 +2708,26 @@ describe("Robinhood Phase 0 protocol", function () {
       fixture.authorizations,
       "AuthorizationNotActive"
     );
+    const blockedAfterRevert = await fixture.authorizations.queryFilter(
+      fixture.authorizations.filters.AuthorizationBlocked()
+    );
+    expect(blockedAfterRevert).to.have.length(blockedBefore.length);
+    await expect(
+      adapter.recordBlocked(
+        await fixture.authorizations.getAddress(),
+        authorizationId,
+        fixture.member.address
+      )
+    )
+      .to.emit(fixture.authorizations, "AuthorizationBlocked")
+      .withArgs(
+        fixture.predicted.programId,
+        authorizationId,
+        fixture.member.address,
+        await adapter.getAddress(),
+        adapter.interface.getFunction("perform")!.selector,
+        await fixture.authorizations.AUTHORIZATION_NOT_ACTIVE()
+      );
     await adapter
       .connect(fixture.outsider)
       .perform(await fixture.authorizations.getAddress(), authorizationId);
@@ -2159,6 +2735,34 @@ describe("Robinhood Phase 0 protocol", function () {
       authorizationId
     );
     expect(consumption.callsInPeriod).to.equal(1n);
+
+    await expect(
+      adapter
+        .connect(fixture.outsider)
+        .perform(await fixture.authorizations.getAddress(), authorizationId)
+    ).to.be.revertedWithCustomError(
+      fixture.authorizations,
+      "AuthorizationLimitExceeded"
+    );
+    await expect(
+      adapter.recordBlocked(
+        await fixture.authorizations.getAddress(),
+        authorizationId,
+        fixture.outsider.address
+      )
+    )
+      .to.emit(fixture.authorizations, "AuthorizationBlocked")
+      .withArgs(
+        fixture.predicted.programId,
+        authorizationId,
+        fixture.outsider.address,
+        await adapter.getAddress(),
+        adapter.interface.getFunction("perform")!.selector,
+        await fixture.authorizations.PERIOD_LIMIT_EXCEEDED()
+      );
+    const [, unchangedConsumption] =
+      await fixture.authorizations.getAuthorization(authorizationId);
+    expect(unchangedConsumption.callsInPeriod).to.equal(1n);
 
     await expect(
       fixture.authorizations.connect(fixture.operator).grantAuthorization({

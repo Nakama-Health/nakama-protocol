@@ -9,6 +9,14 @@ interface IAuthorizationConsumptionRegistry {
         uint256 nativeValue,
         uint256 assetAmount
     ) external;
+
+    function recordBlockedAttempt(
+        bytes32 authorizationId,
+        address principal,
+        bytes4 selector,
+        uint256 nativeValue,
+        uint256 assetAmount
+    ) external returns (bytes32 reasonCode);
 }
 
 /// @notice Test-only example of the minimum adapter boundary: authenticate the
@@ -21,5 +29,14 @@ contract MockAuthorizedAdapter {
             authorizationId, msg.sender, this.perform.selector, 0, 0
         );
         emit Performed(authorizationId, msg.sender);
+    }
+
+    function recordBlocked(address registry, bytes32 authorizationId, address principal)
+        external
+        returns (bytes32 reasonCode)
+    {
+        return IAuthorizationConsumptionRegistry(registry).recordBlockedAttempt(
+            authorizationId, principal, this.perform.selector, 0, 0
+        );
     }
 }

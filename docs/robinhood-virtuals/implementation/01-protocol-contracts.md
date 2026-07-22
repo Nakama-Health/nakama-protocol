@@ -261,14 +261,15 @@ events.
 - public view functions expose sufficient aggregate state for independent
   reconciliation without member health details
 
-**Current Phase 0 evidence:** Deterministic multi-member traces recompute
-tracked assets, encumbrance, free liquidity, member remaining liability,
-pending reservation, unpaid obligation, and donation separation after every
-successful transition. Targeted failure tests prove that recipient
+**Current Phase 0 evidence:** A bounded stateful invariant lane runs eight fixed
+random seeds with sixteen lifecycle transitions each and recomputes tracked
+assets, encumbrance, free liquidity, member remaining liability, pending
+reservation, unpaid obligation, and donation separation after every successful
+transition. A separate real-event replay model reconstructs all aggregate
+accounting from funding through refund. Targeted failures prove that recipient
 substitution, callback settlement reentry, paused transfers, and insolvency
-revert the entire state change. The traces are deterministic property tests,
-not yet long-running stateful fuzzing, differential-model proof, or formal
-verification.
+revert the entire state change. This is executable randomized and differential
+evidence, but it is not long-running independent fuzzing or formal verification.
 
 ### P-007 — Pseudonymous membership registry
 
@@ -345,6 +346,16 @@ period cap, issued/expiry time, nonce, revocation, and purpose metadata.
 - paymaster validates exact selector, account state, amount, rate, and program
 - blocked calls create security telemetry without sensitive data
 
+**Current Phase 0 evidence:** `consumeAuthorization` remains fail-closed and
+reverts without relying on a log that EVM rollback would erase. The exact
+reviewed target adapter can submit a separate `recordBlockedAttempt` transaction
+only for a known grant that remains blocked. It changes no grant or consumption
+state and rejects currently authorized attempts. Tests prove durable telemetry
+for wrong-principal, exhausted-period, and guardian-revoked grants, while direct
+or unbound reporters fail. This telemetry is an adapter assertion, not proof of
+an external side effect. Production paymaster implementation remains outside
+the Phase 0 suite.
+
 ### P-010 — SafetyGuardian and incident controls
 
 **Outcome:** Threshold responders can contain a defined incident without
@@ -363,6 +374,16 @@ requirements, dependency warning, and role revocation.
 - lost signer, compromised agent, USDG incident, chain outage, and contract bug
   exercises pass
 
+**Current Phase 0 evidence:** Local exercises preserve reservation on reviewer
+loss/no quorum, preserve an approved obligation when the settlement signer is
+unavailable, revoke a compromised agent before its next consumption, contain a
+USDG transfer freeze without partial settlement, block new obligations during a
+contract incident, and prove that an outage time jump does not silently expire
+a pause. Resumption requires operator plus guardian action. Live threshold-key
+rotation, network liveness, on-call timing, and issuer recovery remain external
+exercises; see
+[`../../operations/robinhood-phase0-incident-exercises.md`](../../operations/robinhood-phase0-incident-exercises.md).
+
 ### P-011 — Events, views, and generated interface manifest
 
 **Outcome:** SDKs, indexers, auditors, and public reporting can derive canonical
@@ -379,6 +400,16 @@ views, role and lifecycle views, ABI generation, NatSpec, and version manifest.
 - no event contains PHI, identity, document URL, or unbounded free text
 - SDK artifacts are generated reproducibly and diffed in CI
 - breaking schema changes require a new major suite version
+
+**Current Phase 0 evidence:** Major suite version 2 introduces one canonical
+`PoolVault.EconomicActivity` event with stable activity ordinals, program and
+activity indexes, related ID, asset, direct actor, beneficiary, signed amount,
+all seven resulting accounting values, tracked assets, and encumbered assets.
+The factory rejects non-v2 suite records. A real-log replay test reconstructs
+funding, member liability, pending reservation, denial cleanup, obligation,
+settlement, refund maturation, and refund claim and compares every event
+snapshot with the final contract reads. The generated bundle declares artifact
+schema 2, protocol suite major 2, and economic-event schema 2.
 
 ### P-012 — Deployment, verification, and dependency monitor
 

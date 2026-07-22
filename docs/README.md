@@ -41,6 +41,7 @@ deployment explicitly supersede it.
 - [Repository Layout](./architecture/repository-layout.md)
 - [Ethereum Mainnet Protocol Vertical Slice](./architecture/ethereum-mainnet-protocol.md) — immutable contract boundary, reserve accounting, claim finality, integration, and release gate
 - [Robinhood Phase 0 Protocol Implementation](./architecture/robinhood-phase0-protocol.md) — isolated sponsor-funded USDG suite, canonical ABI, local evidence, and fail-closed deployment boundary
+- [Robinhood Phase 0 Incident Exercises](./operations/robinhood-phase0-incident-exercises.md) — local lost-signer, agent, USDG, contract-bug, and outage containment evidence with explicit production boundaries
 - [Protocol Vision and Capability Narrative](./architecture/protocol-vision-and-capability-narrative.md)
 - [Solana Program Architecture](./architecture/solana-program-architecture.md)
 - [Solana Instruction Map](./architecture/solana-instruction-map.md)

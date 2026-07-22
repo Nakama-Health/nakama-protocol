@@ -14,6 +14,9 @@ import {RobinhoodTypes} from "../types/RobinhoodTypes.sol";
 contract PoolVault is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    uint32 public constant ECONOMIC_EVENT_SCHEMA_VERSION = 2;
+    bytes32 public constant SPONSOR_REFUND_ACTIVITY_ID = keccak256("NAKAMA_SPONSOR_REFUND_V2");
+
     error Unauthorized();
     error InvalidAddress();
     error InvalidAmount();
@@ -29,52 +32,29 @@ contract PoolVault is ReentrancyGuard {
     error LedgerInsolvent(uint256 actual, uint256 tracked, uint256 encumbered);
 
     event ModulesBound(address membershipRegistry, address claimManager, address settlementModule);
-    event SponsorFundingReceived(
+    /// @notice Canonical V2 accounting event. `actor` is the address directly
+    /// authorized to mutate the vault (a role or bound module); `beneficiary`
+    /// records the asset recipient when one exists. The flattened accounting
+    /// fields are the complete successful post-state and make replay drift
+    /// independently detectable without private member data.
+    event EconomicActivity(
         bytes32 indexed programId,
-        address indexed sponsor,
-        address indexed asset,
-        uint256 amount,
+        bytes32 indexed activityId,
+        RobinhoodTypes.EconomicActivityKind indexed kind,
+        bytes32 relatedId,
+        address asset,
+        address actor,
+        address beneficiary,
+        int256 amount,
+        uint256 sponsorFunded,
+        uint256 settled,
+        uint256 sponsorRefunded,
+        uint256 maximumRemainingMemberLiability,
+        uint256 pendingRequestReservation,
+        uint256 approvedUnpaidObligations,
+        uint256 maturedRefunds,
         uint256 trackedAssets,
-        bytes32 fundingReference
-    );
-    event MemberLiabilityChanged(
-        bytes32 indexed programId,
-        bytes32 indexed membershipId,
-        int256 amountDelta,
-        uint256 memberRemaining,
-        uint256 maximumRemainingMemberLiability
-    );
-    event PendingReservationChanged(
-        bytes32 indexed programId,
-        bytes32 indexed requestId,
-        bytes32 indexed membershipId,
-        int256 amountDelta,
-        uint256 pendingRequestReservation
-    );
-    event ObligationApproved(
-        bytes32 indexed programId,
-        bytes32 indexed requestId,
-        bytes32 indexed membershipId,
-        uint256 amount,
-        uint256 approvedUnpaidObligations
-    );
-    event ObligationSettled(
-        bytes32 indexed programId,
-        bytes32 indexed requestId,
-        address indexed recipient,
-        address asset,
-        uint256 amount,
-        uint256 trackedAssets
-    );
-    event SponsorRefundMatured(
-        bytes32 indexed programId, address indexed asset, uint256 amount, uint256 maturedRefunds
-    );
-    event SponsorRefundClaimed(
-        bytes32 indexed programId,
-        address indexed sponsor,
-        address indexed recipient,
-        address asset,
-        uint256 amount
+        uint256 encumberedAssets
     );
 
     address public immutable deploymentFactory;
@@ -149,7 +129,14 @@ contract PoolVault is ReentrancyGuard {
         _receiveExact(msg.sender, amount);
         _accounting.sponsorFunded = nextFunded;
         _assertSolvent();
-        emit SponsorFundingReceived(programId, msg.sender, address(asset), amount, trackedAssets(), fundingReference);
+        _emitEconomicActivity(
+            RobinhoodTypes.EconomicActivityKind.SponsorFunding,
+            fundingReference,
+            bytes32(0),
+            msg.sender,
+            address(this),
+            int256(amount)
+        );
     }
 
     function registerMemberLiability(bytes32 membershipId, uint256 amount) external onlyMembershipRegistry {
@@ -160,7 +147,14 @@ contract PoolVault is ReentrancyGuard {
         memberRemaining[membershipId] = amount;
         _accounting.maximumRemainingMemberLiability = nextLiability;
         _assertSolvent();
-        emit MemberLiabilityChanged(programId, membershipId, int256(amount), amount, nextLiability);
+        _emitEconomicActivity(
+            RobinhoodTypes.EconomicActivityKind.MemberLiabilityAdded,
+            membershipId,
+            bytes32(0),
+            msg.sender,
+            address(0),
+            int256(amount)
+        );
     }
 
     function releaseMemberLiability(bytes32 membershipId) external onlyMembershipRegistry returns (uint256 released) {
@@ -169,8 +163,13 @@ contract PoolVault is ReentrancyGuard {
         memberRemaining[membershipId] = 0;
         _accounting.maximumRemainingMemberLiability -= released;
         _assertSolvent();
-        emit MemberLiabilityChanged(
-            programId, membershipId, -int256(released), 0, _accounting.maximumRemainingMemberLiability
+        _emitEconomicActivity(
+            RobinhoodTypes.EconomicActivityKind.MemberLiabilityReleased,
+            membershipId,
+            bytes32(0),
+            msg.sender,
+            address(0),
+            -int256(released)
         );
     }
 
@@ -188,14 +187,27 @@ contract PoolVault is ReentrancyGuard {
         pendingByMember[membershipId] = alreadyPending + amount;
         _accounting.pendingRequestReservation += amount;
         _assertSolvent();
-        emit PendingReservationChanged(
-            programId, requestId, membershipId, int256(amount), _accounting.pendingRequestReservation
+        _emitEconomicActivity(
+            RobinhoodTypes.EconomicActivityKind.PendingReservationAdded,
+            requestId,
+            membershipId,
+            msg.sender,
+            address(0),
+            int256(amount)
         );
     }
 
     function clearPendingRequest(bytes32 requestId) external onlyClaimManager {
-        _clearPending(requestId);
+        (uint256 amount, bytes32 membershipId) = _clearPending(requestId);
         _assertSolvent();
+        _emitEconomicActivity(
+            RobinhoodTypes.EconomicActivityKind.PendingReservationCleared,
+            requestId,
+            membershipId,
+            msg.sender,
+            address(0),
+            -int256(amount)
+        );
     }
 
     function approveObligation(bytes32 requestId, bytes32 membershipId, uint256 amount) external onlyClaimManager {
@@ -211,15 +223,13 @@ contract PoolVault is ReentrancyGuard {
         _accounting.approvedUnpaidObligations += amount;
         obligationAmount[requestId] = amount;
         _assertSolvent();
-        emit MemberLiabilityChanged(
-            programId,
+        _emitEconomicActivity(
+            RobinhoodTypes.EconomicActivityKind.ObligationApproved,
+            requestId,
             membershipId,
-            -int256(amount),
-            remaining - amount,
-            _accounting.maximumRemainingMemberLiability
-        );
-        emit ObligationApproved(
-            programId, requestId, membershipId, amount, _accounting.approvedUnpaidObligations
+            msg.sender,
+            address(0),
+            int256(amount)
         );
     }
 
@@ -237,7 +247,14 @@ contract PoolVault is ReentrancyGuard {
         _accounting.settled += amount;
         _sendExact(recipient, amount);
         _assertSolvent();
-        emit ObligationSettled(programId, requestId, recipient, address(asset), amount, trackedAssets());
+        _emitEconomicActivity(
+            RobinhoodTypes.EconomicActivityKind.ObligationSettled,
+            requestId,
+            bytes32(0),
+            msg.sender,
+            recipient,
+            -int256(amount)
+        );
     }
 
     function matureSponsorRefund() external returns (uint256 amount) {
@@ -247,7 +264,14 @@ contract PoolVault is ReentrancyGuard {
         amount = trackedAssets();
         _accounting.maturedRefunds = amount;
         _assertSolvent();
-        emit SponsorRefundMatured(programId, address(asset), amount, amount);
+        _emitEconomicActivity(
+            RobinhoodTypes.EconomicActivityKind.SponsorRefundMatured,
+            SPONSOR_REFUND_ACTIVITY_ID,
+            bytes32(0),
+            msg.sender,
+            sponsor,
+            int256(amount)
+        );
     }
 
     function claimMaturedRefund(address recipient) external nonReentrant returns (uint256 amount) {
@@ -263,7 +287,14 @@ contract PoolVault is ReentrancyGuard {
         _accounting.sponsorRefunded += amount;
         _sendExact(recipient, amount);
         _assertSolvent();
-        emit SponsorRefundClaimed(programId, msg.sender, recipient, address(asset), amount);
+        _emitEconomicActivity(
+            RobinhoodTypes.EconomicActivityKind.SponsorRefundClaimed,
+            SPONSOR_REFUND_ACTIVITY_ID,
+            bytes32(0),
+            msg.sender,
+            recipient,
+            -int256(amount)
+        );
     }
 
     function accounting() external view returns (RobinhoodTypes.VaultAccounting memory) {
@@ -297,16 +328,43 @@ contract PoolVault is ReentrancyGuard {
         return actualAssets() >= trackedAssets() && trackedAssets() >= encumberedAssets();
     }
 
-    function _clearPending(bytes32 requestId) private {
-        uint256 amount = pendingReservation[requestId];
+    function _clearPending(bytes32 requestId) private returns (uint256 amount, bytes32 membershipId) {
+        amount = pendingReservation[requestId];
         if (amount == 0) revert UnknownPendingRequest(requestId);
-        bytes32 membershipId = pendingMembership[requestId];
+        membershipId = pendingMembership[requestId];
         delete pendingReservation[requestId];
         delete pendingMembership[requestId];
         pendingByMember[membershipId] -= amount;
         _accounting.pendingRequestReservation -= amount;
-        emit PendingReservationChanged(
-            programId, requestId, membershipId, -int256(amount), _accounting.pendingRequestReservation
+    }
+
+    function _emitEconomicActivity(
+        RobinhoodTypes.EconomicActivityKind kind,
+        bytes32 activityId,
+        bytes32 relatedId,
+        address actor,
+        address beneficiary,
+        int256 amount
+    ) private {
+        RobinhoodTypes.VaultAccounting memory state = _accounting;
+        emit EconomicActivity(
+            programId,
+            activityId,
+            kind,
+            relatedId,
+            address(asset),
+            actor,
+            beneficiary,
+            amount,
+            state.sponsorFunded,
+            state.settled,
+            state.sponsorRefunded,
+            state.maximumRemainingMemberLiability,
+            state.pendingRequestReservation,
+            state.approvedUnpaidObligations,
+            state.maturedRefunds,
+            trackedAssets(),
+            encumberedAssets()
         );
     }
 

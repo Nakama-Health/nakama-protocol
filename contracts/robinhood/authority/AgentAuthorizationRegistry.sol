@@ -27,6 +27,7 @@ contract AgentAuthorizationRegistry {
     error AuthorizationAlreadyExists(bytes32 authorizationId);
     error AuthorizationNotActive(bytes32 authorizationId);
     error AuthorizationLimitExceeded(bytes32 authorizationId);
+    error AttemptIsAuthorized(bytes32 authorizationId);
     error SafetyGuardianAlreadyBound();
     error AgentActionsPaused();
 
@@ -64,6 +65,10 @@ contract AgentAuthorizationRegistry {
         bytes4 selector,
         bytes32 reasonCode
     );
+
+    bytes32 public constant AUTHORIZATION_NOT_ACTIVE = keccak256("AUTHORIZATION_NOT_ACTIVE");
+    bytes32 public constant ACTION_LIMIT_EXCEEDED = keccak256("ACTION_LIMIT_EXCEEDED");
+    bytes32 public constant PERIOD_LIMIT_EXCEEDED = keccak256("PERIOD_LIMIT_EXCEEDED");
 
     address public immutable deploymentFactory;
     address public immutable program;
@@ -151,22 +156,13 @@ contract AgentAuthorizationRegistry {
         // `msg.sender` is the bound adapter, but principal and value are
         // caller-reported. This ledger deliberately cannot prove what the
         // adapter did before or after consumption.
+        bytes32 failure = _authorizationFailure(
+            authorizationId, principal, msg.sender, selector, nativeValue, assetAmount
+        );
+        if (failure == AUTHORIZATION_NOT_ACTIVE) revert AuthorizationNotActive(authorizationId);
+        if (failure != bytes32(0)) revert AuthorizationLimitExceeded(authorizationId);
+
         RobinhoodTypes.Authorization storage authorization = _authorizations[authorizationId];
-        if (
-            authorization.principal != principal || authorization.target != msg.sender
-                || authorization.selector != selector || !isAuthorized(authorizationId, principal, msg.sender, selector)
-        ) {
-            emit AuthorizationBlocked(
-                programId, authorizationId, principal, msg.sender, selector, keccak256("AUTHORIZATION_NOT_ACTIVE")
-            );
-            revert AuthorizationNotActive(authorizationId);
-        }
-        if (nativeValue > authorization.maxNativeValue || assetAmount > authorization.maxAssetAmountPerAction) {
-            emit AuthorizationBlocked(
-                programId, authorizationId, principal, msg.sender, selector, keccak256("ACTION_LIMIT_EXCEEDED")
-            );
-            revert AuthorizationLimitExceeded(authorizationId);
-        }
 
         Consumption storage consumption = _consumptions[authorizationId];
         if (
@@ -179,9 +175,6 @@ contract AgentAuthorizationRegistry {
         }
         uint32 nextCalls = consumption.callsInPeriod + 1;
         uint256 nextAssetAmount = consumption.assetAmountInPeriod + assetAmount;
-        if (
-            nextCalls > authorization.maxCallsPerPeriod || nextAssetAmount > authorization.periodAssetLimit
-        ) revert AuthorizationLimitExceeded(authorizationId);
         consumption.callsInPeriod = nextCalls;
         consumption.assetAmountInPeriod = nextAssetAmount;
         emit AuthorizationConsumed(
@@ -192,6 +185,43 @@ contract AgentAuthorizationRegistry {
             selector,
             nextCalls,
             nextAssetAmount
+        );
+    }
+
+    /// @notice Persists privacy-safe telemetry for an attempt which the
+    /// consumption path would reject. This function grants no permission,
+    /// mutates no consumption counter, and cannot make an action executable.
+    /// Reviewed adapters call it in a separate transaction after a failed
+    /// simulation or reverted execution. An attempt that is currently valid
+    /// is rejected so the event cannot falsely label an authorized action.
+    function recordBlockedAttempt(
+        bytes32 authorizationId,
+        address principal,
+        bytes4 selector,
+        uint256 nativeValue,
+        uint256 assetAmount
+    ) external returns (bytes32 reasonCode) {
+        RobinhoodTypes.Authorization storage authorization = _authorizations[authorizationId];
+        if (authorization.principal == address(0) || authorization.target != msg.sender) revert Unauthorized();
+        reasonCode = _authorizationFailure(
+            authorizationId, principal, msg.sender, selector, nativeValue, assetAmount
+        );
+        if (reasonCode == bytes32(0)) revert AttemptIsAuthorized(authorizationId);
+        emit AuthorizationBlocked(
+            programId, authorizationId, principal, msg.sender, selector, reasonCode
+        );
+    }
+
+    function authorizationFailure(
+        bytes32 authorizationId,
+        address principal,
+        address target,
+        bytes4 selector,
+        uint256 nativeValue,
+        uint256 assetAmount
+    ) external view returns (bytes32) {
+        return _authorizationFailure(
+            authorizationId, principal, target, selector, nativeValue, assetAmount
         );
     }
 
@@ -251,6 +281,34 @@ contract AgentAuthorizationRegistry {
                 || authorization.maxCallsPerPeriod == 0
                 || authorization.maxCallsPerPeriod > MAX_CALLS_PER_PERIOD
         ) revert InvalidAuthorization();
+    }
+
+    function _authorizationFailure(
+        bytes32 authorizationId,
+        address principal,
+        address target,
+        bytes4 selector,
+        uint256 nativeValue,
+        uint256 assetAmount
+    ) private view returns (bytes32) {
+        RobinhoodTypes.Authorization storage authorization = _authorizations[authorizationId];
+        if (
+            authorization.principal != principal || authorization.target != target
+                || authorization.selector != selector || !isAuthorized(authorizationId, principal, target, selector)
+        ) return AUTHORIZATION_NOT_ACTIVE;
+        if (nativeValue > authorization.maxNativeValue || assetAmount > authorization.maxAssetAmountPerAction) {
+            return ACTION_LIMIT_EXCEEDED;
+        }
+
+        Consumption storage consumption = _consumptions[authorizationId];
+        bool periodElapsed = consumption.periodStartedAt == 0
+            || block.timestamp >= uint256(consumption.periodStartedAt) + authorization.periodSeconds;
+        uint32 nextCalls = periodElapsed ? 1 : consumption.callsInPeriod + 1;
+        uint256 nextAssetAmount = periodElapsed ? assetAmount : consumption.assetAmountInPeriod + assetAmount;
+        if (nextCalls > authorization.maxCallsPerPeriod || nextAssetAmount > authorization.periodAssetLimit) {
+            return PERIOD_LIMIT_EXCEEDED;
+        }
+        return bytes32(0);
     }
 
     function _isForbiddenTarget(address target) private view returns (bool) {

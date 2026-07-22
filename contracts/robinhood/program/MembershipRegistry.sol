@@ -66,7 +66,7 @@ contract MembershipRegistry is EIP712 {
         bytes32 indexed membershipId,
         RobinhoodTypes.MembershipState previous,
         RobinhoodTypes.MembershipState next,
-        uint256 releasedLiability
+        address indexed actor
     );
 
     address public immutable deploymentFactory;
@@ -311,7 +311,7 @@ contract MembershipRegistry is EIP712 {
         RobinhoodTypes.MembershipState previous = membership_.state;
         membership_.state = next;
         activeMemberships -= 1;
-        uint256 released = IPoolVault(vault).releaseMemberLiability(membershipId);
-        emit MembershipStateChanged(programId, membershipId, previous, next, released);
+        IPoolVault(vault).releaseMemberLiability(membershipId);
+        emit MembershipStateChanged(programId, membershipId, previous, next, msg.sender);
     }
 }

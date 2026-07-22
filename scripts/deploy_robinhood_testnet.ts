@@ -140,6 +140,33 @@ const roles = Object.fromEntries(
     ethers.getAddress(String(value)),
   ])
 );
+const protectedRoleNames = [
+  "sponsor",
+  "operator",
+  "initialReviewer",
+  "appealReviewer",
+  "settlement",
+  "guardian",
+] as const;
+const protectedRoles = protectedRoleNames.map((name) => roles[name]);
+if (new Set(protectedRoles).size !== protectedRoles.length) {
+  throw new Error(
+    "Sponsor, operator, reviewers, settlement, and guardian must be distinct"
+  );
+}
+if (
+  [
+    roles.initialReviewer,
+    roles.appealReviewer,
+    roles.settlement,
+    roles.guardian,
+  ].includes(roles.eligibilityAttestor)
+) {
+  throw new Error("Eligibility attestor conflicts with a protected role");
+}
+if (Object.values(roles).includes(usdgAddress)) {
+  throw new Error("Canonical USDG cannot hold a program role");
+}
 if (deployer.address !== roles.sponsor) {
   throw new Error("Deployer must be the configured sponsor");
 }
@@ -203,6 +230,11 @@ const suiteVersion = {
   minor: parseUint32("suiteVersion.minor", rawConfig.suiteVersion?.minor),
   patch: parseUint32("suiteVersion.patch", rawConfig.suiteVersion?.patch),
 };
+if (suiteVersion.major !== 2) {
+  throw new Error(
+    `suiteVersion.major must be 2 for the canonical EconomicActivity schema; received ${suiteVersion.major}.`
+  );
+}
 
 const bytecodeValues = await Promise.all(
   COMPONENT_NAMES.map(

@@ -20,10 +20,12 @@ Global contracts:
   bytecode commitment, template commitment, and review commitment.
 - `NakamaFactory` is permanently bound to one active funding-asset address and
   its registered identity snapshot. It rejects every other registered token,
-  including six-decimal lookalikes, verifies all eight component creation-code
-  hashes, and asks a one-purpose `Create2Deployer` to deploy deterministic
-  instances. Only the named sponsor may deploy, so an operator cannot register
-  a program under a third party's identity or consume that sponsor's salt.
+  including six-decimal lookalikes, requires a major-version-2 reviewed suite,
+  validates zero, duplicate, and suite-infrastructure role addresses before
+  prediction or deployment, verifies all eight component creation-code hashes,
+  and asks a one-purpose `Create2Deployer` to deploy deterministic instances.
+  Only the named sponsor may deploy, so an operator cannot register a program
+  under a third party's identity or consume that sponsor's salt.
 - `PoolRegistry` is an append-only discovery index for deployed programs.
 
 Each program receives its own immutable instances:
@@ -92,7 +94,7 @@ freeLiquidity = trackedAssets - encumberedAssets
 
 `pendingRequestReservation` is an independently visible subset of remaining
 member liability. Direct token donations increase actual balance but never
-tracked assets, capacity, or promises. V1 intentionally provides no donation
+tracked assets, capacity, or promises. V2 intentionally provides no donation
 sweep path, because adding one would enlarge the custody attack surface.
 
 The vault accepts exact transfer deltas only. Recipient-fee and sender-fee
@@ -109,8 +111,13 @@ adapter calls `consumeAuthorization`, so the adapter itself supplies the
 principal, selector, native-value, and asset-value report. The registry can
 bind that report to an operator-issued grant and enforce its counters, but it
 cannot authenticate the end user or observe the adapter's external side
-effects. Revert-path `AuthorizationBlocked` logs are also rolled back with the
-transaction and are not durable incident telemetry.
+effects. A reverted `consumeAuthorization` transaction cannot leave an EVM log.
+After a rejected simulation or reverted execution, the exact reviewed target
+adapter may call `recordBlockedAttempt` in a separate transaction. That call
+emits `AuthorizationBlocked` only when the grant check still fails, changes no
+permission or counter, and rejects unknown grants, unbound reporters, and
+currently authorized attempts. It is durable adapter-reported telemetry, not
+proof that the rejected external side effect was attempted.
 
 Only specifically reviewed adapters may integrate. Each adapter must
 authenticate the principal, bind the real action selector, reject or honestly
@@ -118,6 +125,24 @@ report value, consume before producing a side effect, and be monitored outside
 the registry. Phase 0 hard-codes zero native and asset limits. A grant to any
 suite module, privileged role, factory, or canonical funding asset is invalid,
 even when that address is a contract.
+
+## Canonical economic event
+
+Major suite version 2 replaces inconsistent accounting events with one
+`EconomicActivity` schema emitted by `PoolVault` after every successful ledger
+mutation. It indexes `programId`, `activityId`, and a stable activity kind; it
+also records the related ID, exact asset, directly authorized actor,
+beneficiary, signed amount, all seven resulting accounting fields, tracked
+assets, and encumbered assets. The actor is the role or bound module that called
+the vault, while the beneficiary identifies an asset recipient when one exists.
+
+The stable activity ordinals are sponsor funding `1`, member liability added
+`2`, member liability released `3`, pending reservation added `4`, pending
+reservation cleared `5`, obligation approved `6`, obligation settled `7`,
+sponsor refund matured `8`, and sponsor refund claimed `9`. Workflow events are
+still useful for request and membership state, but this event is the sole
+canonical accounting replay surface. Its payload contains no identity, health
+evidence, document location, or free text.
 
 ## Decision domain
 
@@ -173,15 +198,27 @@ the exact committed contract-source tree. Generation fails when the Robinhood
 contract directory or Hardhat compiler configuration is dirty, untracked, or
 silently ignored by Git.
 
-The focused suite covers deterministic CREATE2 prediction, lifecycle gates,
+The focused suite covers deterministic CREATE2 prediction, exhaustive role
+separation, lifecycle gates,
 full funding, membership, typed eligibility revocation through EOA and EIP-1271
 attestors, decisions, appeal preservation, no-quorum escalation, hostile
 EIP-1271 reviewers, exact settlement, refunds, recipient-fee and sender-fee
 token rejection, malformed metadata, paused transfers, callback reentrancy,
-post-funding balance loss, donation isolation, scoped incidents, and
-default-deny agent policy. Deterministic seeded lifecycle traces check the
-accounting equations after every transition; they are regression/property
-evidence, not a substitute for an independent fuzzer or formal proof.
+post-funding balance loss, donation isolation, scoped incidents, durable
+blocked-attempt telemetry, and default-deny agent policy. Eight seeded,
+sixteen-step stateful traces check the accounting equations after every
+transition, and a real-log replay test independently rebuilds every accounting
+aggregate across funding, reservation, denial, obligation, settlement,
+liability release, and refund. These are bounded local fuzz/property tests, not
+a substitute for long-running independent fuzzing or formal proof.
+
+The local incident suite exercises lost-reviewer no-quorum containment, a lost
+settlement signer with obligation preservation, compromised-agent emergency
+revocation, USDG transfer freeze and recovery, a contract-bug obligation pause,
+and a chain-outage time jump that does not silently unpause. Production signer
+replacement still belongs to the threshold account itself because program role
+addresses are immutable. See
+[`../../docs/operations/robinhood-phase0-incident-exercises.md`](../../docs/operations/robinhood-phase0-incident-exercises.md).
 
 ## Network and deployment boundary
 

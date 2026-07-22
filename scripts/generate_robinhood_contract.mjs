@@ -87,7 +87,9 @@ const deploymentCodeCommitment = keccak256(
 const sourceCommit = resolveRobinhoodSourceCommit({ cwd: root });
 const generated = `${JSON.stringify(
   {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    protocolSuiteMajor: 2,
+    economicEventSchemaVersion: 2,
     sourceCommit,
     chainFamily: "eip155",
     supportedChains: [
@@ -123,7 +125,7 @@ const generated = `${JSON.stringify(
       deploymentCodeCommitment,
       deploymentKind: "factory-authorized-create2",
       programIdDerivation:
-        "keccak256(abi.encode(NAKAMA_ROBINHOOD_PROGRAM_V1,chainId,factory,sponsor,suiteId,salt))",
+        "keccak256(abi.encode(NAKAMA_ROBINHOOD_PROGRAM_V2,chainId,factory,sponsor,suiteId,salt))",
       componentSaltDerivation:
         "keccak256(abi.encode(programId,uint8(componentIndex)))",
     },

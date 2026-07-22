@@ -141,6 +141,9 @@ export function buildRobinhoodMainnetDryRunPlan({
     "componentCreationCodeHashes"
   );
   if (
+    artifact.schemaVersion !== 2 ||
+    artifact.protocolSuiteMajor !== 2 ||
+    artifact.economicEventSchemaVersion !== 2 ||
     artifact.chainFamily !== "eip155" ||
     !requireArray(artifact.supportedChains, "supportedChains").some(
       (chain) =>
@@ -153,7 +156,7 @@ export function buildRobinhoodMainnetDryRunPlan({
     artifact.fundingAsset?.decimals !== 6
   ) {
     throw new Error(
-      "Protocol artifact does not bind canonical Robinhood USDG."
+      "Protocol artifact does not bind the major-v2 Robinhood USDG suite."
     );
   }
 
@@ -422,6 +425,11 @@ function validateProgramConfig(input) {
       requireUnsigned("suiteVersion.patch", version.patch, MAX_UINT32)
     ),
   };
+  if (suiteVersion.major !== 2) {
+    throw new Error(
+      `suiteVersion.major must be 2 for the canonical EconomicActivity schema; received ${suiteVersion.major}.`
+    );
+  }
   const rawRoles = requireObject(raw.roles, "roles");
   const roleNames = [
     "sponsor",

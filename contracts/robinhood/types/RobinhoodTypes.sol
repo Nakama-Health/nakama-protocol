@@ -75,6 +75,20 @@ library RobinhoodTypes {
         AgentActions
     }
 
+    /// @notice Stable V2 activity ordinals for the canonical vault ledger event.
+    enum EconomicActivityKind {
+        None,
+        SponsorFunding,
+        MemberLiabilityAdded,
+        MemberLiabilityReleased,
+        PendingReservationAdded,
+        PendingReservationCleared,
+        ObligationApproved,
+        ObligationSettled,
+        SponsorRefundMatured,
+        SponsorRefundClaimed
+    }
+
     struct RoleConfig {
         address sponsor;
         address operator;

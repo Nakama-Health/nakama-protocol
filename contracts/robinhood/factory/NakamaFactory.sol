@@ -37,6 +37,9 @@ contract NakamaFactory {
     error FundingAssetIdentityChanged();
     error InvalidBytecode(uint8 component, bytes32 expected, bytes32 actual);
     error DeploymentAddressMismatch(uint8 component, address expected, address actual);
+    error InvalidRole(uint8 roleIndex, address role);
+    error DuplicateRole(uint8 firstRoleIndex, uint8 secondRoleIndex, address role);
+    error IncompatibleSuiteVersion(uint32 expectedMajor, uint32 actualMajor);
 
     event ProgramSuiteDeployed(
         bytes32 indexed programId,
@@ -60,7 +63,8 @@ contract NakamaFactory {
     uint8 private constant SETTLEMENT_COMPONENT = 5;
     uint8 private constant AGENT_COMPONENT = 6;
     uint8 private constant GUARDIAN_COMPONENT = 7;
-    bytes32 private constant PROGRAM_ID_NAMESPACE = keccak256("NAKAMA_ROBINHOOD_PROGRAM_V1");
+    uint32 public constant SUITE_MAJOR_VERSION = 2;
+    bytes32 private constant PROGRAM_ID_NAMESPACE = keccak256("NAKAMA_ROBINHOOD_PROGRAM_V2");
 
     AssetRegistry public immutable assetRegistry;
     TemplateRegistry public immutable templateRegistry;
@@ -118,11 +122,9 @@ contract NakamaFactory {
     ) external returns (RobinhoodTypes.ProgramDeployment memory deployment) {
         if (msg.sender != roles.sponsor) revert Unauthorized();
         if (salt == bytes32(0)) revert InvalidSalt();
+        _validateRoles(config.fundingAsset, roles);
         _requireExpectedFundingAsset(config.fundingAsset);
-        TemplateRegistry.SuiteRecord memory suite = templateRegistry.requireActiveSuite(suiteId, address(this));
-        if (suite.deploymentCodeCommitment != deploymentCodeCommitment) {
-            revert InvalidBytecode(255, suite.deploymentCodeCommitment, deploymentCodeCommitment);
-        }
+        _requireCompatibleSuite(suiteId);
         _verifyBytecodes(bytecodes);
         deployment = _deploymentAddresses(suiteId, salt, config, roles, bytecodes);
 
@@ -248,7 +250,9 @@ contract NakamaFactory {
         ComponentBytecodes calldata bytecodes
     ) external view returns (RobinhoodTypes.ProgramDeployment memory deployment) {
         if (salt == bytes32(0)) revert InvalidSalt();
+        _validateRoles(config.fundingAsset, roles);
         _requireExpectedFundingAsset(config.fundingAsset);
+        _requireCompatibleSuite(suiteId);
         _verifyBytecodes(bytecodes);
         deployment = _deploymentAddresses(suiteId, salt, config, roles, bytecodes);
     }
@@ -264,6 +268,48 @@ contract NakamaFactory {
                 || assetRecord.symbolHash != expectedFundingAssetSymbolHash
                 || assetRecord.runtimeCodeHash != expectedFundingAssetRuntimeCodeHash
         ) revert FundingAssetIdentityChanged();
+    }
+
+    function _requireCompatibleSuite(bytes32 suiteId) private view {
+        TemplateRegistry.SuiteRecord memory suite = templateRegistry.requireActiveSuite(suiteId, address(this));
+        if (suite.major != SUITE_MAJOR_VERSION) {
+            revert IncompatibleSuiteVersion(SUITE_MAJOR_VERSION, suite.major);
+        }
+        if (suite.deploymentCodeCommitment != deploymentCodeCommitment) {
+            revert InvalidBytecode(255, suite.deploymentCodeCommitment, deploymentCodeCommitment);
+        }
+    }
+
+    /// @dev Sponsor, operator, both reviewers, settlement, and guardian are
+    /// six independent authorities. Eligibility attestation may be performed
+    /// by sponsor or operator, but never by a reviewer, settlement, or guardian.
+    /// Arbitrary smart accounts remain valid roles; only suite infrastructure
+    /// contracts, which cannot perform a role, are rejected as incompatible.
+    function _validateRoles(address fundingAsset, RobinhoodTypes.RoleConfig calldata roles) private view {
+        address[7] memory values = [
+            roles.sponsor,
+            roles.operator,
+            roles.initialReviewer,
+            roles.appealReviewer,
+            roles.settlement,
+            roles.guardian,
+            roles.eligibilityAttestor
+        ];
+        for (uint8 i; i < values.length; ++i) {
+            address role = values[i];
+            if (_isIncompatibleRole(role, fundingAsset)) revert InvalidRole(i, role);
+            for (uint8 j; j < i; ++j) {
+                if (role != values[j]) continue;
+                bool allowedEligibilityOverlap = i == 6 && (j == 0 || j == 1);
+                if (!allowedEligibilityOverlap) revert DuplicateRole(j, i, role);
+            }
+        }
+    }
+
+    function _isIncompatibleRole(address role, address fundingAsset) private view returns (bool) {
+        return role == address(0) || role == fundingAsset || role == address(this)
+            || role == address(assetRegistry) || role == address(templateRegistry)
+            || role == address(poolRegistry) || role == address(create2Deployer);
     }
 
     function _deploymentAddresses(

@@ -15,7 +15,7 @@ const address = (suffix: string) => `0x${suffix.padStart(40, "0")}`;
 function config() {
   return {
     suiteId: `0x${"11".repeat(32)}`,
-    suiteVersion: { major: 1, minor: 0, patch: 0 },
+    suiteVersion: { major: 2, minor: 0, patch: 0 },
     salt: `0x${"22".repeat(32)}`,
     templateCommitment: `0x${"33".repeat(32)}`,
     reviewCommitment: `0x${"44".repeat(32)}`,
@@ -141,6 +141,28 @@ describe("Robinhood mainnet offline planning", function () {
         usdG: { ...release.usdG, address: address("999") },
       })
     ).to.throw("canonical address");
+
+    expect(() =>
+      buildRobinhoodMainnetDryRunPlan({
+        ...inputs,
+        config: {
+          ...config(),
+          suiteVersion: { major: 1, minor: 0, patch: 0 },
+        },
+        evidence: release,
+      })
+    ).to.throw("suiteVersion.major must be 2");
+
+    const legacyArtifact = JSON.parse(inputs.artifactRaw);
+    legacyArtifact.schemaVersion = 1;
+    expect(() =>
+      buildRobinhoodMainnetDryRunPlan({
+        ...inputs,
+        artifactRaw: `${JSON.stringify(legacyArtifact)}\n`,
+        config: config(),
+        evidence: release,
+      })
+    ).to.throw("major-v2 Robinhood USDG suite");
   });
 
   it("has no broadcast CLI mode and requires both operator-local inputs", function () {

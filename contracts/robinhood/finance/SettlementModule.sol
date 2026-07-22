@@ -16,15 +16,6 @@ contract SettlementModule is ReentrancyGuard {
     error SettlementPaused();
     error AmountMismatch(uint256 expected, uint256 actual);
 
-    event SettlementExecuted(
-        bytes32 indexed programId,
-        bytes32 indexed requestId,
-        address indexed recipient,
-        address asset,
-        uint256 amount,
-        address settlementActor
-    );
-
     address public immutable program;
     address public immutable vault;
     address public immutable claimManager;
@@ -54,6 +45,5 @@ contract SettlementModule is ReentrancyGuard {
         amount = IPoolVault(vault).settleObligation(requestId, recipient);
         if (amount != expectedAmount) revert AmountMismatch(expectedAmount, amount);
         IClaimManager(claimManager).markSettled(requestId);
-        emit SettlementExecuted(programId, requestId, recipient, program_.fundingAsset(), amount, msg.sender);
     }
 }
