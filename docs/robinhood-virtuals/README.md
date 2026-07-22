@@ -1,7 +1,7 @@
 # Nakama on Robinhood Chain and Virtuals
 
-Status: proposed target strategy and implementation plan
-Evidence date: 2026-07-22
+Status: strategy complete; Phase 0 source implementation candidate; not deployed
+Evidence date: 2026-07-23
 Primary owner: Nakama Protocol
 Target launch path: Robinhood Chain + Virtuals Protocol
 
@@ -104,6 +104,7 @@ product without placing member protection behind speculation.
 8. [Security, Legal, and Release Gates](./implementation/06-security-legal-and-release-gates.md)
 9. [Ninety-Day Backlog](./implementation/07-90-day-backlog.md)
 10. [Decision Register](./implementation/08-decision-register.md)
+11. [Current Implementation Status](./implementation/09-current-implementation-status.md)
 
 The [Five-Pass Review Log](./PASS_LOG.md) records how this package was built and
 challenged.

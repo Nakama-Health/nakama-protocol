@@ -39,6 +39,7 @@ public copy.
 7. [Security, legal, and release gates](./06-security-legal-and-release-gates.md)
 8. [Ninety-day backlog](./07-90-day-backlog.md)
 9. [Decision register](./08-decision-register.md)
+10. [Current implementation status](./09-current-implementation-status.md)
 
 ## Execution Rules
 

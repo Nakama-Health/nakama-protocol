@@ -14,13 +14,15 @@ state in Phase 0.
 
 ## Contract Package Layout
 
-Proposed target layout:
+Implemented package layout:
 
 ```text
 contracts/robinhood/
   factory/
+    Create2Deployer.sol
     NakamaFactory.sol
   registry/
+    AssetRegistry.sol
     PoolRegistry.sol
     TemplateRegistry.sol
   program/
@@ -39,14 +41,18 @@ contracts/robinhood/
   types/
   mocks/
 
-script/robinhood/
-test/robinhood/
+scripts/
+  deploy_robinhood_testnet.ts
+  generate_robinhood_contract.mjs
+  plan_robinhood_mainnet.mjs
+test/ethereum/robinhood/
 deployments/robinhood-mainnet/
 deployments/robinhood-testnet/
 ```
 
-Names may change during design, but responsibilities and trust boundaries may
-not be collapsed merely to reduce contract count.
+The implementation preserves these responsibilities as separate trust
+boundaries. A later suite version may change names, but it must not collapse
+authority or custody merely to reduce contract count.
 
 ## Core Specifications
 
