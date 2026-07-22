@@ -152,7 +152,9 @@ The canonical generated bundle is
 `shared/robinhood/protocol_contract.json`, with one standalone ABI beside it
 for each of the twelve public contracts. Generated metadata includes bytecode
 hashes, runtime template hashes, component order, suite commitment, compiler,
-network IDs, and the exact mainnet USDG identity.
+network IDs, the exact mainnet USDG identity, and a nonzero full Git commit for
+the exact committed contract-source tree. Generation fails when the Robinhood
+contract directory or Hardhat compiler configuration is dirty or untracked.
 
 The focused suite covers deterministic CREATE2 prediction, lifecycle gates,
 full funding, membership, decisions, appeal preservation, no-quorum escalation,
@@ -171,6 +173,14 @@ explicit signer, RPC, USDG address, and reviewed operator-local public config.
 It deploys an unfunded, unverified suite and prints a receipt. It does not fund,
 activate, verify, or publish the program. There is deliberately no mainnet
 deployment command.
+
+`npm run robinhood:deploy:mainnet:plan -- --config <path> --evidence <path>` is
+an offline review lane, not a deployment command. It never loads a provider or
+signer and rejects `--broadcast`. It validates exact source/artifact/bytecode
+provenance and structurally checks separate audit, legal, and release evidence
+before predicting deterministic addresses. Those JSON claims are not trusted
+proof; live independent verification and a separately reviewed deployment
+implementation remain external release gates.
 
 Example inputs and inert receipts live in:
 

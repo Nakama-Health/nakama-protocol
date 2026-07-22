@@ -10,6 +10,7 @@ import {
   runtimeBytecodeBytes,
   runtimeBytecodeTemplateHash,
 } from "./lib/ethereum_bytecode.mjs";
+import { resolveRobinhoodSourceCommit } from "./lib/robinhood_source_provenance.mjs";
 
 const root = process.cwd();
 const outputDirectory = resolve(root, "shared/robinhood");
@@ -83,10 +84,11 @@ const deploymentCodeCommitment = keccak256(
     [componentCreationCodeHashes]
   )
 );
+const sourceCommit = resolveRobinhoodSourceCommit({ cwd: root });
 const generated = `${JSON.stringify(
   {
     schemaVersion: 1,
-    sourceCommit: null,
+    sourceCommit,
     chainFamily: "eip155",
     supportedChains: [
       { name: "Robinhood Chain Mainnet", chainId: 4663, caip2: "eip155:4663" },

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": null,
+  "sourceCommit": "0cb347f1ac0d790b1fc7053a6c0fcb2e0a53dd75",
   "chainFamily": "eip155",
   "supportedChains": [
     {

@@ -12,6 +12,21 @@ Deliver one coherent product surface from canonical protocol artifacts:
 - a public website that explains the category and current product without
   overstating deployed, legal, customer, or platform facts
 
+## Phase 0 SDK acceptance matrix
+
+"Implemented" below means the safe code boundary and deterministic tests exist;
+it does not convert an unconfigured deployment, caller-supplied evidence, or a
+mock adapter into production proof.
+
+| ID    | Code status                                     | Implemented evidence                                                                                                                                                                                       | Remaining external acceptance gate                                                                                                                                                                   |
+| ----- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S-001 | Implemented, fail-closed                        | Generated 12-contract bundle, nonzero committed source revision, raw artifact/ABI hashes, deployment commitment, chain/code verification, version checks, and stale-output CI                              | Audited deployed manifests, exact live source verification, and independent runtime promotion                                                                                                        |
+| S-002 | Implemented                                     | Chain/asset-bound integer USDG amounts, named reads, block/finality/reconciliation context, exhaustive event/error decoding, and full receipt states                                                       | Live deployment readback and production indexer/RPC observation evidence                                                                                                                             |
+| S-003 | Implemented                                     | One immutable EIP-712 object drives preview, EOA signing, local/onchain EIP-1271 verification, replay keys, expiry, and substitution-negative tests                                                        | Production reviewer wallet selection, threshold policy, relayer persistence, and live signature exercise                                                                                             |
+| S-004 | Implemented, writes disabled while unconfigured | Capability-marked action builders, semantic validation, exact pinned and fresh simulations, decoded failures, expected state changes, and no generic send escape hatch                                     | Audited manifest, verified live runtime, wallet exercise, and finalized failure/reorg campaign                                                                                                       |
+| S-005 | Provider-neutral code boundary implemented      | Maintenance-only smart-account simulation, quote-only paymaster policy, exact approval-plus-funding batch plan, account/program/call/value/gas/rate/expiry binding, and disabled user-operation submission | Provider selection; passkey account creation/recovery/signer-change and EIP-1271 conformance; one-signature member UX; fallback-wallet exercise; independent finalized module/paymaster verification |
+| S-006 | Provider-neutral code boundary implemented      | Direct critical reads, indexed/direct reconciliation, write blocking, public-only adapter scope, bounded pagination/retries, cursor/snapshot checks, offline TTL, and conservative reorg invalidation      | Indexer selection/operation, production mapping privacy review, live balance/obligation parity, and outage/reorg campaign                                                                            |
+
 ## Experience Principles
 
 ### One understandable action at a time
@@ -119,6 +134,15 @@ unrestricted session keys or paymaster sponsorship.
 - failure and fallback to compatible wallet are documented
 - provider-specific behavior is isolated behind an adapter
 
+**Phase 0 implementation boundary:** the SDK may expose provider-neutral smart
+account simulation and paymaster quote adapters only when policy and returned
+quotes bind account, program, target, selector, native value, action
+commitment, gas, rate window, and expiry. Adapter self-attestation never
+authorizes submission. Account creation/recovery/signer-change conformance,
+passkey UX, EIP-1271 verification, provider selection, fallback evidence, and
+independently verified user-operation submission remain external acceptance
+gates.
+
 ### S-006 — Indexer/query and offline-safe client
 
 **Outcome:** Applications query fast indexed views while detecting stale or
@@ -132,6 +156,14 @@ divergent state and retaining direct-chain verification.
 - stale/divergent indexer disables unsafe writes and explains the delay
 - pagination, retries, caching, and reorg invalidation are tested
 - no private evidence enters the public query package
+
+**Phase 0 implementation boundary:** the public SDK query adapter validates
+chain/finality/reconciliation context, bounds pagination and retries, detects
+cursor loops, and invalidates cached state on a block-hash reorg. Offline,
+stale, divergent, or indexer-only state cannot authorize writes. Selecting and
+operating an indexer, proving direct-contract balance/obligation parity under
+live failures, and confirming that production mappings contain no private
+evidence remain external acceptance gates.
 
 ## Sponsor Console Work Items
 
