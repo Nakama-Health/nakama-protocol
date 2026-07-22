@@ -47,6 +47,27 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint8",
+        "name": "firstRoleIndex",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint8",
+        "name": "secondRoleIndex",
+        "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "role",
+        "type": "address"
+      }
+    ],
+    "name": "DuplicateRole",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "FundingAssetIdentityChanged",
     "type": "error"
@@ -65,6 +86,22 @@
       }
     ],
     "name": "FundingAssetMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "expectedMajor",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "actualMajor",
+        "type": "uint32"
+      }
+    ],
+    "name": "IncompatibleSuiteVersion",
     "type": "error"
   },
   {
@@ -91,6 +128,22 @@
       }
     ],
     "name": "InvalidBytecode",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint8",
+        "name": "roleIndex",
+        "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "role",
+        "type": "address"
+      }
+    ],
+    "name": "InvalidRole",
     "type": "error"
   },
   {
@@ -175,6 +228,19 @@
     ],
     "name": "ProgramSuiteDeployed",
     "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "SUITE_MAJOR_VERSION",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
     "inputs": [],

@@ -284,10 +284,10 @@
         "type": "uint8"
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "releasedLiability",
-        "type": "uint256"
+        "indexed": true,
+        "internalType": "address",
+        "name": "actor",
+        "type": "address"
       }
     ],
     "name": "MembershipStateChanged",
