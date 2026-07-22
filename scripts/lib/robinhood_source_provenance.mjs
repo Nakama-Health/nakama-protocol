@@ -50,6 +50,23 @@ export function resolveRobinhoodSourceCommit({
     );
   }
 
+  const ignoredSources = runGit(
+    [
+      "ls-files",
+      "--others",
+      "--ignored",
+      "--exclude-standard",
+      "--",
+      ...sourcePaths,
+    ],
+    cwd
+  ).trim();
+  if (ignoredSources !== "") {
+    throw new Error(
+      `Robinhood contract sources must be tracked; ignored source files:\n${ignoredSources}`
+    );
+  }
+
   const sourceCommit = assertRobinhoodSourceCommit(
     runGit(["log", "-1", "--format=%H", "--", ...sourcePaths], cwd).trim()
   );

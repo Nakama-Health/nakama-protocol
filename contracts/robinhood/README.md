@@ -32,8 +32,10 @@ Each program receives its own immutable instances:
   lifecycle, and module bindings.
 - `PoolVault` holds only the program's USDG and maintains the conservative
   liability, pending-request, obligation, settlement, and refund ledger.
-- `MembershipRegistry` verifies EIP-712 or EIP-1271 eligibility and recovery
-  authorizations without accepting identity or health fields.
+- `MembershipRegistry` verifies EIP-712 or EIP-1271 eligibility, exact-envelope
+  revocation, and recovery authorizations without accepting identity or health
+  fields. A revocation is signed by the configured eligibility attestor and may
+  be submitted by any relayer; the relayer never becomes an authority.
 - `DecisionModule` verifies typed initial and appeal decisions from distinct
   accountable reviewers.
 - `ClaimManager` records public-safe request commitments, information requests,
@@ -63,6 +65,16 @@ Enrollment closes by timestamp inside `MembershipRegistry`, independently of
 whether anyone has advanced `ProtectionProgram` from `EnrollmentOpen` to
 `Active`. A membership activation at or after `activeAt` always fails.
 
+Eligibility revocation targets the EIP-712 digest of one complete eligibility
+envelope, rather than a member, account, or cohort. The revocation has its own
+program-bound digest, monotonic nonce, and deadline and is checked through
+`SignatureChecker`, so both EOAs and EIP-1271 accounts can authorize a relayed
+revocation. It is effective only before the eligibility is consumed; consumed
+authorizations cannot be retroactively cancelled. Recording the same target
+again is an idempotent no-op, even after the original revocation deadline, and
+an already-expired eligibility can still receive a durable incident record as
+long as the revocation authorization itself is live.
+
 ## Accounting rule
 
 Phase 0 reserves every active member's complete remaining cap. When a request
@@ -83,8 +95,12 @@ member liability. Direct token donations increase actual balance but never
 tracked assets, capacity, or promises. V1 intentionally provides no donation
 sweep path, because adding one would enlarge the custody attack surface.
 
-The vault accepts exact transfer deltas only. Fee-on-transfer, sender-fee,
-malformed, and negatively rebasing behavior cannot be reconciled and must fail.
+The vault accepts exact transfer deltas only. Recipient-fee and sender-fee
+transfers, transfer callbacks that reenter protected paths, paused transfers,
+and malformed token metadata fail atomically. A post-funding balance loss such
+as a negative rebase makes reconciliation false and blocks protected economic
+transitions until the exact asset balance is restored; the contracts do not
+pretend that an adversarial token can be made safe by accounting alone.
 
 ## Agent adapter boundary
 
@@ -154,12 +170,18 @@ for each of the twelve public contracts. Generated metadata includes bytecode
 hashes, runtime template hashes, component order, suite commitment, compiler,
 network IDs, the exact mainnet USDG identity, and a nonzero full Git commit for
 the exact committed contract-source tree. Generation fails when the Robinhood
-contract directory or Hardhat compiler configuration is dirty or untracked.
+contract directory or Hardhat compiler configuration is dirty, untracked, or
+silently ignored by Git.
 
 The focused suite covers deterministic CREATE2 prediction, lifecycle gates,
-full funding, membership, decisions, appeal preservation, no-quorum escalation,
-EIP-1271 reviewers, exact settlement, refunds, fee-token rejection, donation
-isolation, scoped incidents, and default-deny agent policy.
+full funding, membership, typed eligibility revocation through EOA and EIP-1271
+attestors, decisions, appeal preservation, no-quorum escalation, hostile
+EIP-1271 reviewers, exact settlement, refunds, recipient-fee and sender-fee
+token rejection, malformed metadata, paused transfers, callback reentrancy,
+post-funding balance loss, donation isolation, scoped incidents, and
+default-deny agent policy. Deterministic seeded lifecycle traces check the
+accounting equations after every transition; they are regression/property
+evidence, not a substitute for an independent fuzzer or formal proof.
 
 ## Network and deployment boundary
 

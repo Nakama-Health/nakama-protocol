@@ -6,6 +6,8 @@ target
 .anchor/
 artifacts/
 types/
+!contracts/robinhood/types/
+!contracts/robinhood/types/RobinhoodTypes.sol
 test-ledger/
 output/
 

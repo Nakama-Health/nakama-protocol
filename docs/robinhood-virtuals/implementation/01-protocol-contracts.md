@@ -70,19 +70,19 @@ for an active program cannot be replaced under the same version.
 
 ### Authority matrix
 
-| Action | Member | Sponsor | Operator | Reviewer | Appeal reviewer | Settlement | Guardian |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Fund sponsor budget |  | Yes |  |  |  |  |  |
-| Approve activation |  | Co-sign | Co-sign |  |  |  |  |
-| Activate own membership | Yes |  | Eligibility dependency |  |  |  |  |
-| Commit request | Yes |  | Assisted |  |  |  |  |
-| Request information |  |  |  | Yes | Yes on appeal |  |  |
-| Initial determination |  |  |  | Yes |  |  |  |
-| Appeal determination |  |  |  |  | Yes |  |  |
-| Create obligation |  |  |  | Signed decision only | Signed decision only | Deterministic |  |
-| Settle obligation |  |  |  |  |  | Yes |  |
-| Recover unused funds |  | Terms-bound |  |  |  | Deterministic |  |
-| Pause bounded functions |  |  |  |  |  |  | Threshold |
+| Action                  | Member |     Sponsor |               Operator |             Reviewer |      Appeal reviewer |    Settlement |  Guardian |
+| ----------------------- | -----: | ----------: | ---------------------: | -------------------: | -------------------: | ------------: | --------: |
+| Fund sponsor budget     |        |         Yes |                        |                      |                      |               |           |
+| Approve activation      |        |     Co-sign |                Co-sign |                      |                      |               |           |
+| Activate own membership |    Yes |             | Eligibility dependency |                      |                      |               |           |
+| Commit request          |    Yes |             |               Assisted |                      |                      |               |           |
+| Request information     |        |             |                        |                  Yes |        Yes on appeal |               |           |
+| Initial determination   |        |             |                        |                  Yes |                      |               |           |
+| Appeal determination    |        |             |                        |                      |                  Yes |               |           |
+| Create obligation       |        |             |                        | Signed decision only | Signed decision only | Deterministic |           |
+| Settle obligation       |        |             |                        |                      |                      |           Yes |           |
+| Recover unused funds    |        | Terms-bound |                        |                      |                      | Deterministic |           |
+| Pause bounded functions |        |             |                        |                      |                      |               | Threshold |
 
 No role has a generic arbitrary-call method. Administration functions accept
 typed values, enforce program state, and emit complete events.
@@ -171,6 +171,14 @@ or generalized asset listings.
 **Tests:** Unit and fuzz tests over decimals, transfer failures, donations,
 blacklist/pause simulation, and exact balance reconciliation.
 
+**Current Phase 0 evidence:** The local harness rejects a separately registered
+six-decimal lookalike, malformed metadata, paused transfers, recipient-fee and
+sender-fee transfers, and callback-based funding reentry without crediting the
+ledger. A simulated post-funding balance seizure makes reconciliation false and
+blocks the next protected economic transition. This does not establish the
+current mainnet USDG implementation, proxy admin, freeze, upgrade, or recovery
+behavior; those remain live dependency gates.
+
 ### P-003 — Template and suite registries
 
 **Outcome:** Only reviewed versions can deploy, while historical programs stay
@@ -247,6 +255,15 @@ events.
 - public view functions expose sufficient aggregate state for independent
   reconciliation without member health details
 
+**Current Phase 0 evidence:** Deterministic multi-member traces recompute
+tracked assets, encumbrance, free liquidity, member remaining liability,
+pending reservation, unpaid obligation, and donation separation after every
+successful transition. Targeted failure tests prove that recipient
+substitution, callback settlement reentry, paused transfers, and insolvency
+revert the entire state change. The traces are deterministic property tests,
+not yet long-running stateful fuzzing, differential-model proof, or formal
+verification.
+
 ### P-007 — Pseudonymous membership registry
 
 **Outcome:** Eligible members activate against exact terms without publishing
@@ -266,6 +283,15 @@ and account recovery authorization.
 - membership cannot be transferred or sold unless a future terms version
   explicitly supports it
 - batch/member actions preserve per-member consent and replay protection
+
+**Current Phase 0 evidence:** Eligibility can be signed by an EOA or validated
+by an EIP-1271 attestor. Revocation is a separate typed envelope binding the
+program, exact eligibility digest, monotonic nonce, and deadline; any relayer
+may submit it without gaining authority. Exact-target substitution, stale
+nonce, expired revocation, invalid magic, reverting smart signer, replay,
+post-consumption revocation, and activation-after-revocation are negative
+tested. Repeated revocation is idempotent, while expired eligibility can still
+receive a durable revocation record under a live revocation signature.
 
 ### P-008 — Request, decision, appeal, and obligation lifecycle
 
@@ -288,6 +314,11 @@ receipt, and public-safe reason codes.
 - approval obeys member and aggregate caps and reserves the amount atomically
 - denial exposes a safe reason class but not private rationale
 - exactly one final obligation and settlement can exist per approved version
+
+**Current Phase 0 evidence:** Hostile EIP-1271 reviewer modes that return invalid
+magic or revert do not advance decision nonce, request state, or pending
+reservation. Recipient substitution and callback-based settlement reentry roll
+back atomically, and a subsequent correct settlement succeeds exactly once.
 
 ### P-009 — Agent authorization and paymaster policy hooks
 

@@ -40,7 +40,13 @@ async function componentBytecodes() {
   };
 }
 
-async function deployFixture({ smartReviewer = false, feeToken = false } = {}) {
+async function deployFixture({
+  smartReviewer = false,
+  smartEligibilityAttestor = false,
+  feeToken = false,
+  senderFeeToken = false,
+  fixtureLabel = "base",
+} = {}) {
   const [
     governance,
     sponsor,
@@ -56,8 +62,13 @@ async function deployFixture({ smartReviewer = false, feeToken = false } = {}) {
     outsider,
   ] = await ethers.getSigners();
 
+  if (feeToken && senderFeeToken) {
+    throw new Error("Only one adversarial funding-token mode may be selected.");
+  }
   const token = feeToken
     ? await ethers.deployContract("FeeOnTransferUSDG")
+    : senderFeeToken
+    ? await ethers.deployContract("SenderFeeUSDG")
     : await ethers.deployContract("MockUSDG");
   const reviewerContract = smartReviewer
     ? await ethers.deployContract("MockERC1271Reviewer", [
@@ -67,6 +78,14 @@ async function deployFixture({ smartReviewer = false, feeToken = false } = {}) {
   const reviewer = reviewerContract
     ? await reviewerContract.getAddress()
     : reviewerOwner.address;
+  const eligibilityAttestorContract = smartEligibilityAttestor
+    ? await ethers.deployContract("MockERC1271Reviewer", [
+        eligibilityAttestor.address,
+      ])
+    : null;
+  const eligibilityAttestorRole = eligibilityAttestorContract
+    ? await eligibilityAttestorContract.getAddress()
+    : eligibilityAttestor.address;
 
   const assetRegistry = await ethers.deployContract("AssetRegistry", [
     governance.address,
@@ -133,10 +152,14 @@ async function deployFixture({ smartReviewer = false, feeToken = false } = {}) {
     appealReviewer: appealReviewer.address,
     settlement: settlement.address,
     guardian: guardian.address,
-    eligibilityAttestor: eligibilityAttestor.address,
+    eligibilityAttestor: eligibilityAttestorRole,
   };
   const salt = commitment(
-    `program-${smartReviewer ? "1271" : "eoa"}-${feeToken ? "fee" : "exact"}`
+    `program-${fixtureLabel}-${
+      smartReviewer ? "1271-reviewer" : "eoa-reviewer"
+    }-${smartEligibilityAttestor ? "1271-attestor" : "eoa-attestor"}-${
+      feeToken ? "fee" : senderFeeToken ? "sender-fee" : "exact"
+    }`
   );
   const predicted = await factory.predictDeployment(
     suiteId,
@@ -192,6 +215,7 @@ async function deployFixture({ smartReviewer = false, feeToken = false } = {}) {
     settlement,
     guardian,
     eligibilityAttestor,
+    eligibilityAttestorContract,
     member,
     memberTwo,
     payoutRecipient,
@@ -230,14 +254,39 @@ async function fundAndOpenEnrollment(fixture: Fixture) {
   await fixture.program.markFunded();
   await fixture.program.connect(fixture.sponsor).approveActivationAsSponsor();
   await fixture.program.connect(fixture.operator).approveActivationAsOperator();
-  await networkHelpers.time.increaseTo(fixture.config.enrollmentOpensAt);
+  const now = BigInt(await networkHelpers.time.latest());
+  if (now < fixture.config.enrollmentOpensAt) {
+    await networkHelpers.time.increaseTo(fixture.config.enrollmentOpensAt);
+  }
   await fixture.program.openEnrollment();
 }
 
 async function activateMember(
   fixture: Fixture,
   member = fixture.member,
-  label = "member-one"
+  label = "member-one",
+  nonce = 0n
+) {
+  const { eligibility, signature } = await signedEligibility(
+    fixture,
+    member,
+    label,
+    { nonce }
+  );
+  const membershipId = await fixture.membership.deriveMembershipId(
+    eligibility.memberCommitment
+  );
+  await fixture.membership
+    .connect(member)
+    .activateMembership(eligibility, signature);
+  return membershipId;
+}
+
+async function signedEligibility(
+  fixture: Fixture,
+  member: Fixture["member"],
+  label: string,
+  options: { nonce?: bigint; validUntil?: bigint } = {}
 ) {
   const memberCommitment = commitment(label);
   const eligibility = {
@@ -246,8 +295,8 @@ async function activateMember(
     account: member.address,
     termsCommitment: fixture.config.termsCommitment,
     privacyCommitment: fixture.config.privacyCommitment,
-    nonce: 0n,
-    validUntil: fixture.config.activeAt,
+    nonce: options.nonce ?? 0n,
+    validUntil: options.validUntil ?? fixture.config.activeAt,
   };
   const chainId = (await ethers.provider.getNetwork()).chainId;
   const signature = await fixture.eligibilityAttestor.signTypedData(
@@ -270,17 +319,56 @@ async function activateMember(
     },
     eligibility
   );
-  const membershipId = await fixture.membership.deriveMembershipId(
-    memberCommitment
+  return { eligibility, signature };
+}
+
+async function signedEligibilityRevocation(
+  fixture: Fixture,
+  eligibility: Awaited<ReturnType<typeof signedEligibility>>["eligibility"],
+  options: {
+    nonce?: bigint;
+    validUntil?: bigint;
+    signer?: Fixture["eligibilityAttestor"];
+  } = {}
+) {
+  const authorizationDigest = await fixture.membership.hashEligibility(
+    eligibility
   );
-  await fixture.membership
-    .connect(member)
-    .activateMembership(eligibility, signature);
-  return membershipId;
+  const revocation = {
+    programId: fixture.predicted.programId,
+    authorizationDigest,
+    nonce:
+      options.nonce ?? (await fixture.membership.eligibilityRevocationNonce()),
+    validUntil:
+      options.validUntil ?? BigInt(await networkHelpers.time.latest()) + 600n,
+  };
+  const signature = await (
+    options.signer ?? fixture.eligibilityAttestor
+  ).signTypedData(
+    {
+      name: "Nakama Membership Eligibility",
+      version: "1",
+      chainId: (await ethers.provider.getNetwork()).chainId,
+      verifyingContract: await fixture.membership.getAddress(),
+    },
+    {
+      EligibilityRevocation: [
+        { name: "programId", type: "bytes32" },
+        { name: "authorizationDigest", type: "bytes32" },
+        { name: "nonce", type: "uint256" },
+        { name: "validUntil", type: "uint64" },
+      ],
+    },
+    revocation
+  );
+  return { authorizationDigest, revocation, signature };
 }
 
 async function activateProgram(fixture: Fixture) {
-  await networkHelpers.time.increaseTo(fixture.config.activeAt);
+  const now = BigInt(await networkHelpers.time.latest());
+  if (now < fixture.config.activeAt) {
+    await networkHelpers.time.increaseTo(fixture.config.activeAt);
+  }
   await fixture.program.activate();
 }
 
@@ -291,7 +379,10 @@ async function openRequest(
   label = "request-one",
   requestedAmount = 400n * USDG
 ) {
-  const requestId = await fixture.claims.deriveRequestId(membershipId, 0);
+  const requestId = await fixture.claims.deriveRequestId(
+    membershipId,
+    await fixture.claims.requestNonce(membershipId)
+  );
   const recipientSalt = commitment(`${label}-recipient-salt`);
   const recipientCommitment = await fixture.claims.recipientCommitment(
     requestId,
@@ -377,6 +468,67 @@ async function signDecisionPayload(
     },
     decision
   );
+}
+
+function seededUint32(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return state >>> 0;
+  };
+}
+
+async function assertVaultInvariants(
+  fixture: Fixture,
+  membershipIds: readonly string[],
+  requestIds: readonly string[],
+  expectedUnaccounted = 0n
+) {
+  const [accounting, actual, tracked, encumbered, freeLiquidity] =
+    await Promise.all([
+      fixture.vault.accounting(),
+      fixture.vault.actualAssets(),
+      fixture.vault.trackedAssets(),
+      fixture.vault.encumberedAssets(),
+      fixture.vault.freeLiquidity(),
+    ]);
+  const memberRemaining = await Promise.all(
+    membershipIds.map((membershipId) =>
+      fixture.vault.memberRemaining(membershipId)
+    )
+  );
+  const pending = await Promise.all(
+    requestIds.map((requestId) => fixture.vault.pendingReservation(requestId))
+  );
+  const obligations = await Promise.all(
+    requestIds.map((requestId) => fixture.vault.obligationAmount(requestId))
+  );
+  const sum = (values: readonly bigint[]) =>
+    values.reduce((total, value) => total + value, 0n);
+
+  expect(tracked).to.equal(
+    accounting.sponsorFunded - accounting.settled - accounting.sponsorRefunded
+  );
+  expect(encumbered).to.equal(
+    accounting.maximumRemainingMemberLiability +
+      accounting.approvedUnpaidObligations +
+      accounting.maturedRefunds
+  );
+  expect(freeLiquidity).to.equal(tracked - encumbered);
+  expect(accounting.maximumRemainingMemberLiability).to.equal(
+    sum(memberRemaining)
+  );
+  expect(accounting.pendingRequestReservation).to.equal(sum(pending));
+  expect(accounting.approvedUnpaidObligations).to.equal(sum(obligations));
+  expect(accounting.pendingRequestReservation).to.be.lessThanOrEqual(
+    accounting.maximumRemainingMemberLiability
+  );
+  expect(actual).to.equal(tracked + expectedUnaccounted);
+  expect(actual).to.be.greaterThanOrEqual(tracked);
+  expect(tracked).to.be.greaterThanOrEqual(encumbered);
+  expect(await fixture.vault.reconciled()).to.equal(true);
 }
 
 describe("Robinhood Phase 0 protocol", function () {
@@ -1000,6 +1152,358 @@ describe("Robinhood Phase 0 protocol", function () {
     expect((await fixture.claims.request(opened.requestId)).state).to.equal(6n);
   });
 
+  it("fails closed when an EIP-1271 reviewer returns invalid magic or reverts", async function () {
+    const fixture = await deployFixture({
+      smartReviewer: true,
+      fixtureLabel: "hostile-1271-reviewer",
+    });
+    await fundAndOpenEnrollment(fixture);
+    const membershipId = await activateMember(fixture);
+    await activateProgram(fixture);
+    const opened = await openRequest(fixture, membershipId);
+    const approval = await signedDecision(fixture, opened.requestId);
+
+    await expect(
+      fixture.reviewerContract!.connect(fixture.outsider).setSignatureMode(1)
+    ).to.be.revertedWithCustomError(fixture.reviewerContract!, "Unauthorized");
+    await fixture
+      .reviewerContract!.connect(fixture.reviewerOwner)
+      .setSignatureMode(1);
+    await expect(
+      fixture.claims.executeInitialDecision(
+        approval.decision,
+        fixture.payoutRecipient.address,
+        opened.recipientSalt,
+        approval.signature
+      )
+    ).to.be.revertedWithCustomError(fixture.decisions, "InvalidSignature");
+    expect(await fixture.decisions.nonces(fixture.reviewer)).to.equal(0n);
+    expect((await fixture.claims.request(opened.requestId)).state).to.equal(1n);
+    expect(
+      (await fixture.vault.accounting()).pendingRequestReservation
+    ).to.equal(opened.requestedAmount);
+
+    await fixture
+      .reviewerContract!.connect(fixture.reviewerOwner)
+      .setSignatureMode(2);
+    await expect(
+      fixture.claims.executeInitialDecision(
+        approval.decision,
+        fixture.payoutRecipient.address,
+        opened.recipientSalt,
+        approval.signature
+      )
+    ).to.be.revertedWithCustomError(fixture.decisions, "InvalidSignature");
+    expect(await fixture.decisions.nonces(fixture.reviewer)).to.equal(0n);
+
+    await fixture
+      .reviewerContract!.connect(fixture.reviewerOwner)
+      .setSignatureMode(0);
+    await fixture.claims.executeInitialDecision(
+      approval.decision,
+      fixture.payoutRecipient.address,
+      opened.recipientSalt,
+      approval.signature
+    );
+    expect(await fixture.decisions.nonces(fixture.reviewer)).to.equal(1n);
+    expect((await fixture.claims.request(opened.requestId)).state).to.equal(6n);
+  });
+
+  it("records typed eligibility revocation with deterministic expiry, replay, and idempotency semantics", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+    await fundAndOpenEnrollment(fixture);
+    const now = BigInt(await networkHelpers.time.latest());
+    const revoked = await signedEligibility(
+      fixture,
+      fixture.member,
+      "revoked-member",
+      { validUntil: now + 10n }
+    );
+    const revocation = await signedEligibilityRevocation(
+      fixture,
+      revoked.eligibility,
+      { validUntil: now + 20n }
+    );
+
+    const invalidSignature = await signedEligibilityRevocation(
+      fixture,
+      revoked.eligibility,
+      { signer: fixture.outsider }
+    );
+    await expect(
+      fixture.membership
+        .connect(fixture.outsider)
+        .revokeEligibilityAuthorization(
+          revoked.eligibility,
+          invalidSignature.revocation,
+          invalidSignature.signature
+        )
+    ).to.be.revertedWithCustomError(fixture.membership, "InvalidAuthorization");
+
+    const firstResult = await fixture.membership
+      .connect(fixture.outsider)
+      .revokeEligibilityAuthorization.staticCall(
+        revoked.eligibility,
+        revocation.revocation,
+        revocation.signature
+      );
+    expect(firstResult[0]).to.equal(revocation.authorizationDigest);
+    expect(firstResult[1]).to.equal(true);
+    await expect(
+      fixture.membership
+        .connect(fixture.outsider)
+        .revokeEligibilityAuthorization(
+          revoked.eligibility,
+          revocation.revocation,
+          revocation.signature
+        )
+    )
+      .to.emit(fixture.membership, "EligibilityAuthorizationRevoked")
+      .withArgs(
+        fixture.predicted.programId,
+        revocation.authorizationDigest,
+        fixture.eligibilityAttestor.address,
+        fixture.outsider.address,
+        0n
+      );
+    expect(
+      await fixture.membership.eligibilityAuthorizationRevoked(
+        revocation.authorizationDigest
+      )
+    ).to.equal(true);
+    expect(
+      await fixture.membership.authorizationUsed(
+        await fixture.membership.hashEligibilityRevocation(
+          revocation.revocation
+        )
+      )
+    ).to.equal(true);
+    expect(await fixture.membership.eligibilityRevocationNonce()).to.equal(1n);
+
+    await networkHelpers.time.increaseTo(now + 21n);
+    const retryResult = await fixture.membership
+      .connect(fixture.outsider)
+      .revokeEligibilityAuthorization.staticCall(
+        revoked.eligibility,
+        revocation.revocation,
+        revocation.signature
+      );
+    expect(retryResult[0]).to.equal(revocation.authorizationDigest);
+    expect(retryResult[1]).to.equal(false);
+    await expect(
+      fixture.membership
+        .connect(fixture.outsider)
+        .revokeEligibilityAuthorization(
+          revoked.eligibility,
+          revocation.revocation,
+          revocation.signature
+        )
+    ).to.not.emit(fixture.membership, "EligibilityAuthorizationRevoked");
+    expect(await fixture.membership.eligibilityRevocationNonce()).to.equal(1n);
+
+    const fresh = await signedEligibility(
+      fixture,
+      fixture.outsider,
+      "revocation-envelope-negative"
+    );
+    const substituted = await signedEligibility(
+      fixture,
+      fixture.memberTwo,
+      "revocation-target-substitution"
+    );
+    const targetBoundRevocation = await signedEligibilityRevocation(
+      fixture,
+      fresh.eligibility
+    );
+    await expect(
+      fixture.membership
+        .connect(fixture.outsider)
+        .revokeEligibilityAuthorization(
+          substituted.eligibility,
+          targetBoundRevocation.revocation,
+          targetBoundRevocation.signature
+        )
+    ).to.be.revertedWithCustomError(fixture.membership, "InvalidAuthorization");
+    expect(await fixture.membership.eligibilityRevocationNonce()).to.equal(1n);
+
+    const staleNonceRevocation = await signedEligibilityRevocation(
+      fixture,
+      fresh.eligibility,
+      { nonce: 0n }
+    );
+    await expect(
+      fixture.membership
+        .connect(fixture.outsider)
+        .revokeEligibilityAuthorization(
+          fresh.eligibility,
+          staleNonceRevocation.revocation,
+          staleNonceRevocation.signature
+        )
+    ).to.be.revertedWithCustomError(fixture.membership, "InvalidAuthorization");
+    const expiredEnvelope = await signedEligibilityRevocation(
+      fixture,
+      fresh.eligibility,
+      { validUntil: now + 20n }
+    );
+    await expect(
+      fixture.membership
+        .connect(fixture.outsider)
+        .revokeEligibilityAuthorization(
+          fresh.eligibility,
+          expiredEnvelope.revocation,
+          expiredEnvelope.signature
+        )
+    ).to.be.revertedWithCustomError(fixture.membership, "SignatureExpired");
+
+    await expect(
+      fixture.membership
+        .connect(fixture.member)
+        .activateMembership(revoked.eligibility, revoked.signature)
+    )
+      .to.be.revertedWithCustomError(
+        fixture.membership,
+        "RevokedEligibilityAuthorization"
+      )
+      .withArgs(revocation.authorizationDigest);
+
+    const expired = await signedEligibility(
+      fixture,
+      fixture.memberTwo,
+      "expired-but-recorded-member",
+      { validUntil: now + 5n }
+    );
+    const expiredRevocation = await signedEligibilityRevocation(
+      fixture,
+      expired.eligibility
+    );
+    await expect(
+      fixture.membership
+        .connect(fixture.outsider)
+        .revokeEligibilityAuthorization(
+          expired.eligibility,
+          expiredRevocation.revocation,
+          expiredRevocation.signature
+        )
+    ).to.emit(fixture.membership, "EligibilityAuthorizationRevoked");
+    await expect(
+      fixture.membership
+        .connect(fixture.memberTwo)
+        .activateMembership(expired.eligibility, expired.signature)
+    ).to.be.revertedWithCustomError(
+      fixture.membership,
+      "RevokedEligibilityAuthorization"
+    );
+
+    const replacement = await signedEligibility(
+      fixture,
+      fixture.member,
+      "revoked-member",
+      { nonce: 1n }
+    );
+    await fixture.membership
+      .connect(fixture.member)
+      .activateMembership(replacement.eligibility, replacement.signature);
+    await expect(
+      fixture.membership
+        .connect(fixture.member)
+        .activateMembership(replacement.eligibility, replacement.signature)
+    ).to.be.revertedWithCustomError(fixture.membership, "SignatureAlreadyUsed");
+    const consumedRevocation = await signedEligibilityRevocation(
+      fixture,
+      replacement.eligibility
+    );
+    await expect(
+      fixture.membership
+        .connect(fixture.outsider)
+        .revokeEligibilityAuthorization(
+          replacement.eligibility,
+          consumedRevocation.revocation,
+          consumedRevocation.signature
+        )
+    ).to.be.revertedWithCustomError(fixture.membership, "SignatureAlreadyUsed");
+  });
+
+  it("accepts relayed EIP-1271 eligibility revocation without requiring the smart account to call", async function () {
+    const fixture = await deployFixture({
+      smartEligibilityAttestor: true,
+      fixtureLabel: "smart-eligibility-attestor",
+    });
+    await fundAndOpenEnrollment(fixture);
+
+    const firstMembershipId = await activateMember(
+      fixture,
+      fixture.member,
+      "smart-attestor-active"
+    );
+    expect(
+      await fixture.membership.isActiveMembership(firstMembershipId)
+    ).to.equal(true);
+
+    const revoked = await signedEligibility(
+      fixture,
+      fixture.memberTwo,
+      "smart-attestor-revoked"
+    );
+    const revocation = await signedEligibilityRevocation(
+      fixture,
+      revoked.eligibility
+    );
+    await fixture
+      .eligibilityAttestorContract!.connect(fixture.eligibilityAttestor)
+      .setSignatureMode(1);
+    await expect(
+      fixture.membership
+        .connect(fixture.outsider)
+        .revokeEligibilityAuthorization(
+          revoked.eligibility,
+          revocation.revocation,
+          revocation.signature
+        )
+    ).to.be.revertedWithCustomError(fixture.membership, "InvalidAuthorization");
+    expect(await fixture.membership.eligibilityRevocationNonce()).to.equal(0n);
+    await fixture
+      .eligibilityAttestorContract!.connect(fixture.eligibilityAttestor)
+      .setSignatureMode(2);
+    await expect(
+      fixture.membership
+        .connect(fixture.outsider)
+        .revokeEligibilityAuthorization(
+          revoked.eligibility,
+          revocation.revocation,
+          revocation.signature
+        )
+    ).to.be.revertedWithCustomError(fixture.membership, "InvalidAuthorization");
+    expect(await fixture.membership.eligibilityRevocationNonce()).to.equal(0n);
+    await fixture
+      .eligibilityAttestorContract!.connect(fixture.eligibilityAttestor)
+      .setSignatureMode(0);
+    await expect(
+      fixture.membership
+        .connect(fixture.outsider)
+        .revokeEligibilityAuthorization(
+          revoked.eligibility,
+          revocation.revocation,
+          revocation.signature
+        )
+    )
+      .to.emit(fixture.membership, "EligibilityAuthorizationRevoked")
+      .withArgs(
+        fixture.predicted.programId,
+        revocation.authorizationDigest,
+        await fixture.eligibilityAttestorContract!.getAddress(),
+        fixture.outsider.address,
+        0n
+      );
+    await expect(
+      fixture.membership
+        .connect(fixture.memberTwo)
+        .activateMembership(revoked.eligibility, revoked.signature)
+    ).to.be.revertedWithCustomError(
+      fixture.membership,
+      "RevokedEligibilityAuthorization"
+    );
+  });
+
   it("rotates a member account with a typed attestor authorization and rejects stale recovery nonces", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
     await fundAndOpenEnrollment(fixture);
@@ -1076,6 +1580,239 @@ describe("Robinhood Phase 0 protocol", function () {
     expect(await fixture.vault.trackedAssets()).to.equal(0n);
   });
 
+  it("rejects malformed asset metadata and paused transfers without changing custody", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+    const malformed = await ethers.deployContract("MalformedMetadataToken");
+    await expect(
+      fixture.assetRegistry
+        .connect(fixture.governance)
+        .registerAsset(
+          await malformed.getAddress(),
+          commitment("MALFORMED"),
+          commitment("Global Dollar"),
+          commitment("USDG")
+        )
+    ).to.be.revert(ethers);
+
+    await fixture.program.connect(fixture.operator).markReviewed();
+    await fixture.token.mint(fixture.sponsor.address, AGGREGATE_CAP);
+    await fixture.token
+      .connect(fixture.sponsor)
+      .approve(await fixture.vault.getAddress(), AGGREGATE_CAP);
+    const token = await ethers.getContractAt(
+      "MockUSDG",
+      await fixture.token.getAddress()
+    );
+    await token.setTransfersPaused(true);
+    await expect(
+      fixture.vault
+        .connect(fixture.sponsor)
+        .fund(AGGREGATE_CAP, commitment("paused-funding"))
+    ).to.be.revertedWith("USDG_TRANSFERS_PAUSED");
+    expect(await fixture.vault.actualAssets()).to.equal(0n);
+    expect(await fixture.vault.trackedAssets()).to.equal(0n);
+    expect((await fixture.vault.accounting()).sponsorFunded).to.equal(0n);
+
+    await token.setTransfersPaused(false);
+    await fixture.vault
+      .connect(fixture.sponsor)
+      .fund(AGGREGATE_CAP, commitment("unpaused-funding"));
+    expect(await fixture.vault.actualAssets()).to.equal(AGGREGATE_CAP);
+    expect(await fixture.vault.trackedAssets()).to.equal(AGGREGATE_CAP);
+  });
+
+  it("rejects sender-fee and callback-capable funding atomically", async function () {
+    const senderFeeFixture = await deployFixture({
+      senderFeeToken: true,
+      fixtureLabel: "sender-fee-token",
+    });
+    await senderFeeFixture.program
+      .connect(senderFeeFixture.operator)
+      .markReviewed();
+    const senderFee = AGGREGATE_CAP / 100n;
+    await senderFeeFixture.token.mint(
+      senderFeeFixture.sponsor.address,
+      AGGREGATE_CAP + senderFee
+    );
+    await senderFeeFixture.token
+      .connect(senderFeeFixture.sponsor)
+      .approve(await senderFeeFixture.vault.getAddress(), AGGREGATE_CAP);
+    await expect(
+      senderFeeFixture.vault
+        .connect(senderFeeFixture.sponsor)
+        .fund(AGGREGATE_CAP, commitment("sender-fee-funding"))
+    )
+      .to.be.revertedWithCustomError(
+        senderFeeFixture.vault,
+        "UnsupportedTokenBehavior"
+      )
+      .withArgs(AGGREGATE_CAP, AGGREGATE_CAP + senderFee, AGGREGATE_CAP);
+    expect(await senderFeeFixture.vault.actualAssets()).to.equal(0n);
+    expect(await senderFeeFixture.vault.trackedAssets()).to.equal(0n);
+
+    const callbackFixture = await deployFixture({
+      fixtureLabel: "callback-token-funding",
+    });
+    await callbackFixture.program
+      .connect(callbackFixture.operator)
+      .markReviewed();
+    await callbackFixture.token.mint(
+      callbackFixture.sponsor.address,
+      AGGREGATE_CAP
+    );
+    await callbackFixture.token
+      .connect(callbackFixture.sponsor)
+      .approve(await callbackFixture.vault.getAddress(), AGGREGATE_CAP);
+    const callbackToken = await ethers.getContractAt(
+      "MockUSDG",
+      await callbackFixture.token.getAddress()
+    );
+    await callbackToken.setTransferCallback(
+      await callbackFixture.vault.getAddress(),
+      callbackFixture.vault.interface.encodeFunctionData("fund", [
+        1n,
+        commitment("nested-funding"),
+      ])
+    );
+    await expect(
+      callbackFixture.vault
+        .connect(callbackFixture.sponsor)
+        .fund(AGGREGATE_CAP, commitment("callback-funding"))
+    ).to.be.revertedWithCustomError(callbackToken, "TransferCallbackFailed");
+    expect(await callbackFixture.vault.actualAssets()).to.equal(0n);
+    expect(await callbackFixture.vault.trackedAssets()).to.equal(0n);
+
+    await callbackToken.clearTransferCallback();
+    await callbackFixture.vault
+      .connect(callbackFixture.sponsor)
+      .fund(AGGREGATE_CAP, commitment("callback-cleared-funding"));
+    expect(await callbackFixture.vault.trackedAssets()).to.equal(AGGREGATE_CAP);
+  });
+
+  it("rolls back membership activation when a negative rebase breaks exact full funding", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+    await fundAndOpenEnrollment(fixture);
+    const authorization = await signedEligibility(
+      fixture,
+      fixture.member,
+      "negative-rebase-member"
+    );
+    const digest = await fixture.membership.hashEligibility(
+      authorization.eligibility
+    );
+    const membershipId = await fixture.membership.deriveMembershipId(
+      authorization.eligibility.memberCommitment
+    );
+    const token = await ethers.getContractAt(
+      "MockUSDG",
+      await fixture.token.getAddress()
+    );
+    await token.forceBurn(await fixture.vault.getAddress(), 1n);
+    expect(await fixture.vault.reconciled()).to.equal(false);
+    await expect(
+      fixture.membership
+        .connect(fixture.member)
+        .activateMembership(authorization.eligibility, authorization.signature)
+    ).to.be.revertedWithCustomError(fixture.vault, "LedgerInsolvent");
+    expect(await fixture.membership.authorizationUsed(digest)).to.equal(false);
+    expect(await fixture.membership.totalActivated()).to.equal(0n);
+    expect((await fixture.membership.membership(membershipId)).state).to.equal(
+      0n
+    );
+
+    await token.mint(await fixture.vault.getAddress(), 1n);
+    expect(await fixture.vault.reconciled()).to.equal(true);
+    await fixture.membership
+      .connect(fixture.member)
+      .activateMembership(authorization.eligibility, authorization.signature);
+    expect(await fixture.membership.authorizationUsed(digest)).to.equal(true);
+    expect(await fixture.vault.memberRemaining(membershipId)).to.equal(
+      PER_MEMBER_CAP
+    );
+  });
+
+  it("keeps recipient substitution and callback reentrancy atomic through settlement", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+    await fundAndOpenEnrollment(fixture);
+    const membershipId = await activateMember(fixture);
+    await activateProgram(fixture);
+
+    const requestId = await fixture.claims.deriveRequestId(membershipId, 0n);
+    const recipient = await ethers.deployContract("MockReentrantRecipient");
+    const recipientSalt = commitment("reentrant-recipient-salt");
+    const recipientCommitment = await fixture.claims.recipientCommitment(
+      requestId,
+      await recipient.getAddress(),
+      recipientSalt
+    );
+    const requestedAmount = 250n * USDG;
+    await fixture.claims
+      .connect(fixture.member)
+      .openRequest(
+        membershipId,
+        commitment("reentrant-recipient-evidence"),
+        recipientCommitment,
+        requestedAmount
+      );
+    const approval = await signedDecision(fixture, requestId, {
+      amount: requestedAmount,
+    });
+
+    await expect(
+      fixture.claims.executeInitialDecision(
+        approval.decision,
+        fixture.payoutRecipient.address,
+        recipientSalt,
+        approval.signature
+      )
+    ).to.be.revertedWithCustomError(fixture.claims, "InvalidDecision");
+    expect(await fixture.decisions.nonces(fixture.reviewer)).to.equal(0n);
+    expect((await fixture.claims.request(requestId)).state).to.equal(1n);
+    expect(
+      (await fixture.vault.accounting()).pendingRequestReservation
+    ).to.equal(requestedAmount);
+
+    await fixture.claims.executeInitialDecision(
+      approval.decision,
+      await recipient.getAddress(),
+      recipientSalt,
+      approval.signature
+    );
+    await recipient.configure(
+      await fixture.settlements.getAddress(),
+      fixture.settlements.interface.encodeFunctionData("settle", [requestId])
+    );
+    const token = await ethers.getContractAt(
+      "MockUSDG",
+      await fixture.token.getAddress()
+    );
+    await token.setTransferCallback(
+      await recipient.getAddress(),
+      recipient.interface.encodeFunctionData("onTokenTransfer")
+    );
+
+    await expect(
+      fixture.settlements.connect(fixture.settlement).settle(requestId)
+    ).to.be.revertedWithCustomError(token, "TransferCallbackFailed");
+    expect((await fixture.claims.request(requestId)).state).to.equal(6n);
+    expect(await fixture.vault.obligationAmount(requestId)).to.equal(
+      requestedAmount
+    );
+    expect(
+      (await fixture.vault.accounting()).approvedUnpaidObligations
+    ).to.equal(requestedAmount);
+    expect((await fixture.vault.accounting()).settled).to.equal(0n);
+    expect(await token.balanceOf(await recipient.getAddress())).to.equal(0n);
+
+    await token.clearTransferCallback();
+    await fixture.settlements.connect(fixture.settlement).settle(requestId);
+    expect((await fixture.claims.request(requestId)).state).to.equal(8n);
+    expect(await fixture.vault.obligationAmount(requestId)).to.equal(0n);
+    expect(await token.balanceOf(await recipient.getAddress())).to.equal(
+      requestedAmount
+    );
+  });
+
   it("does not let direct donations expand tracked assets or promises", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
     await fixture.token.mint(fixture.outsider.address, 1_000n * USDG);
@@ -1145,6 +1882,188 @@ describe("Robinhood Phase 0 protocol", function () {
     expect(
       await fixture.token.balanceOf(fixture.payoutRecipient.address)
     ).to.equal(amounts.reduce((total, amount) => total + amount, 0n));
+  });
+
+  it("preserves exact accounting across deterministic randomized lifecycle traces", async function () {
+    for (const seed of [0x1a2b3c4d, 0x51f15e, 0xc0ffee, 0xdeadbeef]) {
+      const next = seededUint32(seed);
+      const fixture = await deployFixture({
+        fixtureLabel: `stateful-${seed.toString(16)}`,
+      });
+      await fundAndOpenEnrollment(fixture);
+      const actors = [fixture.member, fixture.memberTwo, fixture.outsider];
+      const membershipIds: string[] = [];
+      for (const [index, actor] of actors.entries()) {
+        membershipIds.push(
+          await activateMember(
+            fixture,
+            actor,
+            `stateful-${seed}-member-${index}`
+          )
+        );
+      }
+      await activateProgram(fixture);
+
+      const donation = BigInt((next() % 50) + 1) * USDG;
+      await fixture.token.mint(fixture.outsider.address, donation);
+      await fixture.token
+        .connect(fixture.outsider)
+        .transfer(await fixture.vault.getAddress(), donation);
+      const requestIds: string[] = [];
+      const unsettled: string[] = [];
+      await assertVaultInvariants(fixture, membershipIds, requestIds, donation);
+
+      for (let step = 0; step < 12; step += 1) {
+        const remaining = await Promise.all(
+          membershipIds.map((membershipId) =>
+            fixture.vault.memberRemaining(membershipId)
+          )
+        );
+        const available = remaining
+          .map((amount, index) => ({ amount, index }))
+          .filter(({ amount }) => amount > 0n);
+        if (available.length === 0) break;
+        const selected = available[next() % available.length];
+        const maximumUnits = selected.amount / USDG;
+        const requestedUnits = BigInt((next() % 250) + 1);
+        const requestedAmount =
+          (requestedUnits > maximumUnits ? maximumUnits : requestedUnits) *
+          USDG;
+        const opened = await openRequest(
+          fixture,
+          membershipIds[selected.index],
+          actors[selected.index],
+          `stateful-${seed}-request-${step}`,
+          requestedAmount
+        );
+        requestIds.push(opened.requestId);
+        await assertVaultInvariants(
+          fixture,
+          membershipIds,
+          requestIds,
+          donation
+        );
+
+        const action = next() % 4;
+        if (action <= 1) {
+          const approvedAmount =
+            action === 0
+              ? requestedAmount
+              : requestedAmount / 2n > 0n
+              ? requestedAmount / 2n
+              : requestedAmount;
+          const approval = await signedDecision(fixture, opened.requestId, {
+            amount: approvedAmount,
+          });
+          await fixture.claims.executeInitialDecision(
+            approval.decision,
+            fixture.payoutRecipient.address,
+            opened.recipientSalt,
+            approval.signature
+          );
+          unsettled.push(opened.requestId);
+        } else if (action === 2) {
+          const denial = await signedDecision(fixture, opened.requestId, {
+            action: 3,
+            amount: 0n,
+          });
+          await fixture.claims.executeInitialDecision(
+            denial.decision,
+            ethers.ZeroAddress,
+            ethers.ZeroHash,
+            denial.signature
+          );
+          await assertVaultInvariants(
+            fixture,
+            membershipIds,
+            requestIds,
+            donation
+          );
+          await fixture.claims
+            .connect(actors[selected.index])
+            .fileAppeal(
+              opened.requestId,
+              commitment(`stateful-${seed}-appeal-${step}`)
+            );
+          const finalDenial = await signedDecision(fixture, opened.requestId, {
+            round: 2,
+            action: 3,
+            amount: 0n,
+            signer: fixture.appealReviewer,
+          });
+          await fixture.claims.executeAppealDecision(
+            finalDenial.decision,
+            ethers.ZeroAddress,
+            ethers.ZeroHash,
+            finalDenial.signature
+          );
+        } else {
+          const informationRequest = await signedDecision(
+            fixture,
+            opened.requestId,
+            { action: 1, amount: 0n }
+          );
+          await fixture.claims.executeInitialDecision(
+            informationRequest.decision,
+            ethers.ZeroAddress,
+            ethers.ZeroHash,
+            informationRequest.signature
+          );
+          await fixture.claims
+            .connect(actors[selected.index])
+            .updateEvidence(
+              opened.requestId,
+              commitment(`stateful-${seed}-evidence-update-${step}`)
+            );
+          const approval = await signedDecision(fixture, opened.requestId, {
+            amount: requestedAmount,
+          });
+          await fixture.claims.executeInitialDecision(
+            approval.decision,
+            fixture.payoutRecipient.address,
+            opened.recipientSalt,
+            approval.signature
+          );
+          unsettled.push(opened.requestId);
+        }
+
+        await assertVaultInvariants(
+          fixture,
+          membershipIds,
+          requestIds,
+          donation
+        );
+        if (unsettled.length > 0 && next() % 2 === 0) {
+          const settlementIndex = next() % unsettled.length;
+          const [requestId] = unsettled.splice(settlementIndex, 1);
+          await fixture.settlements
+            .connect(fixture.settlement)
+            .settle(requestId);
+          await assertVaultInvariants(
+            fixture,
+            membershipIds,
+            requestIds,
+            donation
+          );
+        }
+      }
+
+      for (const requestId of unsettled) {
+        await fixture.settlements.connect(fixture.settlement).settle(requestId);
+        await assertVaultInvariants(
+          fixture,
+          membershipIds,
+          requestIds,
+          donation
+        );
+      }
+      expect(
+        (await fixture.vault.accounting()).approvedUnpaidObligations
+      ).to.equal(0n);
+      expect(
+        (await fixture.vault.accounting()).pendingRequestReservation
+      ).to.equal(0n);
+    }
   });
 
   it("enforces scoped pauses and two-party unpause without opening a withdrawal path", async function () {

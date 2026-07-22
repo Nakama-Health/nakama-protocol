@@ -69,6 +69,18 @@ describe("Robinhood artifact source provenance", function () {
     );
   });
 
+  it("rejects ignored contract sources instead of silently omitting them", async function () {
+    await writeFile(join(repository, ".gitignore"), "Ignored.sol\n");
+    await writeFile(
+      join(repository, "contracts/robinhood/Ignored.sol"),
+      "contract Ignored {}\n"
+    );
+
+    expect(() => resolveRobinhoodSourceCommit({ cwd: repository })).to.throw(
+      /must be tracked; ignored source files:\ncontracts\/robinhood\/Ignored\.sol/
+    );
+  });
+
   it("rejects null, abbreviated, uppercase, and zero provenance", function () {
     for (const value of [null, "abc123", "A".repeat(40), "0".repeat(40)]) {
       expect(() => assertRobinhoodSourceCommit(value)).to.throw(

@@ -15,6 +15,9 @@ contract MembershipRegistry is EIP712 {
     bytes32 public constant ELIGIBILITY_TYPEHASH = keccak256(
         "Eligibility(bytes32 programId,bytes32 memberCommitment,address account,bytes32 termsCommitment,bytes32 privacyCommitment,uint256 nonce,uint64 validUntil)"
     );
+    bytes32 public constant ELIGIBILITY_REVOCATION_TYPEHASH = keccak256(
+        "EligibilityRevocation(bytes32 programId,bytes32 authorizationDigest,uint256 nonce,uint64 validUntil)"
+    );
     bytes32 public constant RECOVERY_TYPEHASH = keccak256(
         "RecoveryAuthorization(bytes32 programId,bytes32 membershipId,address newAccount,uint256 nonce,uint64 validUntil)"
     );
@@ -34,6 +37,7 @@ contract MembershipRegistry is EIP712 {
     error InvalidAuthorization();
     error SignatureExpired();
     error SignatureAlreadyUsed();
+    error RevokedEligibilityAuthorization(bytes32 authorizationDigest);
     error MembershipAlreadyExists(bytes32 membershipId);
     error AccountAlreadyBound(address account);
     error MembershipLimitReached(uint32 maximum);
@@ -48,6 +52,13 @@ contract MembershipRegistry is EIP712 {
         uint64 expiresAt,
         bytes32 termsCommitment,
         bytes32 privacyCommitment
+    );
+    event EligibilityAuthorizationRevoked(
+        bytes32 indexed programId,
+        bytes32 indexed authorizationDigest,
+        address indexed eligibilityAttestor,
+        address submittedBy,
+        uint256 revocationNonce
     );
     event MembershipAccountRecovered(bytes32 indexed programId, bytes32 indexed membershipId, uint256 recoveryNonce);
     event MembershipStateChanged(
@@ -65,11 +76,13 @@ contract MembershipRegistry is EIP712 {
     address public claimManager;
     uint32 public totalActivated;
     uint32 public activeMemberships;
+    uint256 public eligibilityRevocationNonce;
 
     mapping(bytes32 membershipId => Membership membership_) private _memberships;
     mapping(bytes32 membershipId => address account) private _membershipAccount;
     mapping(address account => bytes32 membershipId) private _accountMembership;
     mapping(bytes32 digest => bool used) public authorizationUsed;
+    mapping(bytes32 authorizationDigest => bool revoked) public eligibilityAuthorizationRevoked;
     mapping(bytes32 membershipId => uint256 nonce) public recoveryNonces;
 
     constructor(address deploymentFactory_, address program_, address vault_)
@@ -110,6 +123,9 @@ contract MembershipRegistry is EIP712 {
                 || eligibility.account != msg.sender || eligibility.termsCommitment != program_.termsCommitment()
                 || eligibility.privacyCommitment != program_.privacyCommitment()
         ) revert InvalidAuthorization();
+        bytes32 digest = _eligibilityDigest(eligibility);
+        if (authorizationUsed[digest]) revert SignatureAlreadyUsed();
+        if (eligibilityAuthorizationRevoked[digest]) revert RevokedEligibilityAuthorization(digest);
         if (block.timestamp > eligibility.validUntil) revert SignatureExpired();
         if (_accountMembership[msg.sender] != bytes32(0)) revert AccountAlreadyBound(msg.sender);
         if (totalActivated >= program_.maxMembers()) revert MembershipLimitReached(program_.maxMembers());
@@ -118,8 +134,6 @@ contract MembershipRegistry is EIP712 {
         if (_memberships[membershipId].state != RobinhoodTypes.MembershipState.None) {
             revert MembershipAlreadyExists(membershipId);
         }
-        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(ELIGIBILITY_TYPEHASH, eligibility)));
-        if (authorizationUsed[digest]) revert SignatureAlreadyUsed();
         if (!SignatureChecker.isValidSignatureNow(program_.eligibilityAttestor(), digest, signature)) {
             revert InvalidAuthorization();
         }
@@ -146,6 +160,51 @@ contract MembershipRegistry is EIP712 {
             eligibility.termsCommitment,
             eligibility.privacyCommitment
         );
+    }
+
+    /// @notice Revokes one exact eligibility envelope before it is consumed.
+    /// The configured EOA or ERC-1271 attestor authorizes a narrow typed
+    /// revocation that any relayer may submit. Repeated calls are successful
+    /// no-ops, and expired eligibility may still receive a durable revocation
+    /// record while the revocation authorization itself remains live.
+    function revokeEligibilityAuthorization(
+        RobinhoodTypes.Eligibility calldata eligibility,
+        RobinhoodTypes.EligibilityRevocation calldata revocation,
+        bytes calldata signature
+    )
+        external
+        returns (bytes32 authorizationDigest, bool changed)
+    {
+        INakamaProgram program_ = INakamaProgram(program);
+        if (
+            eligibility.programId != programId || eligibility.memberCommitment == bytes32(0)
+                || eligibility.account == address(0) || eligibility.termsCommitment != program_.termsCommitment()
+                || eligibility.privacyCommitment != program_.privacyCommitment()
+        ) revert InvalidAuthorization();
+
+        authorizationDigest = _eligibilityDigest(eligibility);
+        if (authorizationUsed[authorizationDigest]) revert SignatureAlreadyUsed();
+        if (eligibilityAuthorizationRevoked[authorizationDigest]) return (authorizationDigest, false);
+        uint256 nonce = eligibilityRevocationNonce;
+        if (
+            revocation.programId != programId || revocation.authorizationDigest != authorizationDigest
+                || revocation.nonce != nonce
+        ) revert InvalidAuthorization();
+        if (block.timestamp > revocation.validUntil) revert SignatureExpired();
+        bytes32 revocationDigest = _eligibilityRevocationDigest(revocation);
+        if (authorizationUsed[revocationDigest]) revert SignatureAlreadyUsed();
+        address attestor = program_.eligibilityAttestor();
+        if (!SignatureChecker.isValidSignatureNow(attestor, revocationDigest, signature)) {
+            revert InvalidAuthorization();
+        }
+
+        authorizationUsed[revocationDigest] = true;
+        eligibilityAuthorizationRevoked[authorizationDigest] = true;
+        eligibilityRevocationNonce = nonce + 1;
+        emit EligibilityAuthorizationRevoked(
+            programId, authorizationDigest, attestor, msg.sender, nonce
+        );
+        return (authorizationDigest, true);
     }
 
     function recoverMembershipAccount(
@@ -213,7 +272,15 @@ contract MembershipRegistry is EIP712 {
     }
 
     function hashEligibility(RobinhoodTypes.Eligibility calldata eligibility) external view returns (bytes32) {
-        return _hashTypedDataV4(keccak256(abi.encode(ELIGIBILITY_TYPEHASH, eligibility)));
+        return _eligibilityDigest(eligibility);
+    }
+
+    function hashEligibilityRevocation(RobinhoodTypes.EligibilityRevocation calldata revocation)
+        external
+        view
+        returns (bytes32)
+    {
+        return _eligibilityRevocationDigest(revocation);
     }
 
     function hashRecovery(RobinhoodTypes.RecoveryAuthorization calldata authorization) external view returns (bytes32) {
@@ -222,6 +289,18 @@ contract MembershipRegistry is EIP712 {
 
     function _canRelease(bytes32 membershipId) private view returns (bool) {
         return claimManager != address(0) && IClaimManager(claimManager).canReleaseMembership(membershipId);
+    }
+
+    function _eligibilityDigest(RobinhoodTypes.Eligibility calldata eligibility) private view returns (bytes32) {
+        return _hashTypedDataV4(keccak256(abi.encode(ELIGIBILITY_TYPEHASH, eligibility)));
+    }
+
+    function _eligibilityRevocationDigest(RobinhoodTypes.EligibilityRevocation calldata revocation)
+        private
+        view
+        returns (bytes32)
+    {
+        return _hashTypedDataV4(keccak256(abi.encode(ELIGIBILITY_REVOCATION_TYPEHASH, revocation)));
     }
 
     function _release(

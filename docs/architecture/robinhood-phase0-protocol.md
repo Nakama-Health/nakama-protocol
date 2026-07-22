@@ -33,6 +33,26 @@ or escalated. A member can advance the evidence commitment only after the
 assigned reviewer signs `RequestInformation`; one update closes that window
 and restarts the appropriate human decision period.
 
+Eligibility cancellation is also an explicit authorization, not an operator
+side effect. The configured eligibility attestor signs an EIP-712
+`EligibilityRevocation` that binds the program, the exact eligibility digest,
+a global monotonic revocation nonce, and a deadline. Any relayer can submit it,
+including when the attestor is an EIP-1271 smart account. The target is then
+durably blocked before activation; repeated submissions are idempotent, expired
+eligibility may still be recorded as revoked, and an already-consumed
+eligibility cannot be retroactively cancelled.
+
+The local adversarial harness exercises both sides of custody. It rejects
+recipient-fee and sender-fee transfers by exact balance deltas, rejects
+malformed metadata and paused transfers, and rolls back callback-based funding
+or settlement reentry. A simulated post-funding seizure makes vault
+reconciliation fail and blocks membership activation without consuming its
+signature. Seeded multi-member traces then compare ledger aggregates with the
+sum of per-member, pending-request, and obligation mappings after each action.
+These checks improve regression confidence but do not replace formal
+verification, a long-running invariant fuzzer, a current USDG assessment, or an
+external audit.
+
 Program caps cannot exceed the largest signed event delta, and appeal or
 decision windows cannot exceed 365 days. `ClaimManager` also checks every
 timestamp addition before narrowing it to `uint64`, so a malformed schedule
