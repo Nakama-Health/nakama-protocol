@@ -1,13 +1,14 @@
 [
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "policyRegistry_",
+        "type": "address"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "constructor"
-  },
-  {
-    "inputs": [],
-    "name": "AlreadyAttested",
-    "type": "error"
   },
   {
     "inputs": [
@@ -37,8 +38,19 @@
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "ChallengeAlreadyUsed",
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "required",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "provided",
+        "type": "uint256"
+      }
+    ],
+    "name": "CapitalCapTooLow",
     "type": "error"
   },
   {
@@ -50,27 +62,11 @@
     "inputs": [
       {
         "internalType": "uint64",
-        "name": "closesAt",
-        "type": "uint64"
-      }
-    ],
-    "name": "ChallengeWindowOpen",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint64",
         "name": "validAfter",
         "type": "uint64"
       }
     ],
     "name": "ControllerDelayActive",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "DecisionAlreadyReached",
     "type": "error"
   },
   {
@@ -180,33 +176,12 @@
   },
   {
     "inputs": [],
-    "name": "InvalidShortString",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidSignature",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidState",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "LedgerInvariantViolation",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "nullifier",
-        "type": "bytes32"
-      }
-    ],
-    "name": "NullifierAlreadyUsed",
     "type": "error"
   },
   {
@@ -226,29 +201,8 @@
     "type": "error"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "deficit",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "RecapitalizationExceedsDeficit",
-    "type": "error"
-  },
-  {
     "inputs": [],
     "name": "ReentrancyGuardReentrantCall",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "SignatureExpired",
     "type": "error"
   },
   {
@@ -265,17 +219,6 @@
       }
     ],
     "name": "SlippageExceeded",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "str",
-        "type": "string"
-      }
-    ],
-    "name": "StringTooLong",
     "type": "error"
   },
   {
@@ -339,136 +282,6 @@
       }
     ],
     "name": "CapitalSharesChanged",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "claimId",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint8",
-        "name": "round",
-        "type": "uint8"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "attester",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "voteKey",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint16",
-        "name": "votes",
-        "type": "uint16"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint16",
-        "name": "threshold",
-        "type": "uint16"
-      }
-    ],
-    "name": "ClaimAttested",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "claimId",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
-        "internalType": "enum ProtocolTypes.ClaimStatus",
-        "name": "status",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "approvedAmount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "decisionCommitment",
-        "type": "bytes32"
-      }
-    ],
-    "name": "ClaimCaseStateChanged",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "claimId",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "counterCommitment",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint64",
-        "name": "decisionDeadline",
-        "type": "uint64"
-      }
-    ],
-    "name": "ClaimChallenged",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "claimId",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "claimant",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "recipient",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "nonce",
-        "type": "uint256"
-      }
-    ],
-    "name": "ClaimRecipientAuthorized",
     "type": "event"
   },
   {
@@ -544,12 +357,6 @@
       }
     ],
     "name": "DomainAssetVaultCreated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [],
-    "name": "EIP712DomainChanged",
     "type": "event"
   },
   {
@@ -700,6 +507,37 @@
       {
         "indexed": true,
         "internalType": "bytes32",
+        "name": "claimId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousRecipient",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "newRecipient",
+        "type": "address"
+      }
+    ],
+    "name": "ObligationRecipientUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "obligationId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
         "name": "lineId",
         "type": "bytes32"
       },
@@ -725,35 +563,35 @@
       {
         "indexed": true,
         "internalType": "bytes32",
-        "name": "planId",
+        "name": "positionId",
         "type": "bytes32"
       },
       {
         "indexed": true,
         "internalType": "bytes32",
-        "name": "seriesId",
+        "name": "premiumLineId",
         "type": "bytes32"
       },
       {
         "indexed": true,
+        "internalType": "bytes32",
+        "name": "coverageLineId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
         "internalType": "address",
-        "name": "assetToken",
+        "name": "payer",
         "type": "address"
       },
       {
         "indexed": false,
-        "internalType": "uint64",
-        "name": "challengeWindow",
-        "type": "uint64"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "termsCommitment",
-        "type": "bytes32"
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
       }
     ],
-    "name": "PolicySeriesCreated",
+    "name": "PolicyPremiumCollected",
     "type": "event"
   },
   {
@@ -814,19 +652,6 @@
   },
   {
     "inputs": [],
-    "name": "CLAIM_RECIPIENT_TYPEHASH",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "CONTROLLER_DELAY",
     "outputs": [
       {
@@ -854,6 +679,19 @@
   {
     "inputs": [],
     "name": "MAX_CHALLENGE_WINDOW",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_COVERAGE_DURATION",
     "outputs": [
       {
         "internalType": "uint64",
@@ -939,6 +777,30 @@
     ],
     "name": "acceptPlanController",
     "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "seriesId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "eligibilityProof",
+        "type": "bytes32[]"
+      }
+    ],
+    "name": "activatePolicyPosition",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "positionId",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -1032,69 +894,6 @@
     "name": "challengeClaim",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "claimId",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "address",
-        "name": "recipient",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "nonce",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "deadline",
-        "type": "uint256"
-      }
-    ],
-    "name": "claimRecipientDigest",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "claimId",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "uint8",
-        "name": "round",
-        "type": "uint8"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "voteKey",
-        "type": "bytes32"
-      }
-    ],
-    "name": "claimVoteCount",
-    "outputs": [
-      {
-        "internalType": "uint16",
-        "name": "",
-        "type": "uint16"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1250,9 +1049,49 @@
         "type": "address"
       },
       {
+        "internalType": "bytes32",
+        "name": "coverageLineSalt",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "premiumLineSalt",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "eligibilityRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "coverageDuration",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "initialDecisionWindow",
+        "type": "uint64"
+      },
+      {
         "internalType": "uint64",
         "name": "challengeWindow",
         "type": "uint64"
+      },
+      {
+        "internalType": "uint256",
+        "name": "coverageLimit",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "premiumAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "exposureCap",
+        "type": "uint256"
       },
       {
         "internalType": "bytes32",
@@ -1296,6 +1135,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "deploymentFactory",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "bytes32",
@@ -1327,35 +1179,6 @@
       }
     ],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "planId",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "address",
-        "name": "claimant",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "nullifier",
-        "type": "bytes32"
-      }
-    ],
-    "name": "deriveClaimId",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "pure",
     "type": "function"
   },
   {
@@ -1396,30 +1219,6 @@
       }
     ],
     "name": "deriveFundingLineId",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "pure",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "lineId",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "salt",
-        "type": "bytes32"
-      }
-    ],
-    "name": "deriveObligationId",
     "outputs": [
       {
         "internalType": "bytes32",
@@ -1512,6 +1311,11 @@
           },
           {
             "internalType": "uint256",
+            "name": "openExposure",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
             "name": "reserved",
             "type": "uint256"
           },
@@ -1535,46 +1339,16 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "eip712Domain",
-    "outputs": [
-      {
-        "internalType": "bytes1",
-        "name": "fields",
-        "type": "bytes1"
-      },
-      {
-        "internalType": "string",
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "version",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "chainId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "verifyingContract",
-        "type": "address"
-      },
+    "inputs": [
       {
         "internalType": "bytes32",
-        "name": "salt",
+        "name": "positionId",
         "type": "bytes32"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "extensions",
-        "type": "uint256[]"
       }
     ],
-    "stateMutability": "view",
+    "name": "expirePolicyPosition",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -1659,132 +1433,6 @@
     "name": "fundSubsidy",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "claimId",
-        "type": "bytes32"
-      }
-    ],
-    "name": "getClaim",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "bytes32",
-            "name": "planId",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "seriesId",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "lineId",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "claimCommitment",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "nullifier",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "address",
-            "name": "claimant",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "payoutRecipient",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "requestedAmount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "approvedAmount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "pendingLiability",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "recipientNonce",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint64",
-            "name": "decisionDeadline",
-            "type": "uint64"
-          },
-          {
-            "internalType": "uint8",
-            "name": "round",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bool",
-            "name": "fallbackApproved",
-            "type": "bool"
-          },
-          {
-            "internalType": "bool",
-            "name": "roundOneDecisionReady",
-            "type": "bool"
-          },
-          {
-            "internalType": "bool",
-            "name": "roundOneApproved",
-            "type": "bool"
-          },
-          {
-            "internalType": "enum ProtocolTypes.ClaimStatus",
-            "name": "status",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "fallbackDecisionCommitment",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "roundOneDecisionCommitment",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "finalDecisionCommitment",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "obligationId",
-            "type": "bytes32"
-          }
-        ],
-        "internalType": "struct ProtocolTypes.ClaimCase",
-        "name": "",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -2069,81 +1717,6 @@
     "inputs": [
       {
         "internalType": "bytes32",
-        "name": "seriesId",
-        "type": "bytes32"
-      }
-    ],
-    "name": "getPolicySeries",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "bytes32",
-            "name": "planId",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "address",
-            "name": "assetToken",
-            "type": "address"
-          },
-          {
-            "internalType": "uint64",
-            "name": "challengeWindow",
-            "type": "uint64"
-          },
-          {
-            "internalType": "bool",
-            "name": "active",
-            "type": "bool"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "termsCommitment",
-            "type": "bytes32"
-          }
-        ],
-        "internalType": "struct ProtocolTypes.PolicySeries",
-        "name": "",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "claimId",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "uint8",
-        "name": "round",
-        "type": "uint8"
-      },
-      {
-        "internalType": "address",
-        "name": "attester",
-        "type": "address"
-      }
-    ],
-    "name": "hasAttested",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
         "name": "planId",
         "type": "bytes32"
       },
@@ -2212,6 +1785,11 @@
           },
           {
             "internalType": "uint256",
+            "name": "openExposure",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
             "name": "reserved",
             "type": "uint256"
           },
@@ -2238,36 +1816,7 @@
     "inputs": [
       {
         "internalType": "bytes32",
-        "name": "planId",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "address",
-        "name": "claimant",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "nullifier",
-        "type": "bytes32"
-      }
-    ],
-    "name": "nullifierUsed",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "used",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "lineId",
+        "name": "positionId",
         "type": "bytes32"
       },
       {
@@ -2380,6 +1929,11 @@
           },
           {
             "internalType": "uint256",
+            "name": "openExposure",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
             "name": "reserved",
             "type": "uint256"
           },
@@ -2397,6 +1951,19 @@
         "internalType": "struct ProtocolTypes.BalanceSheet",
         "name": "",
         "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "policyRegistry",
+    "outputs": [
+      {
+        "internalType": "contract NakamaPolicyRegistry",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -2434,52 +2001,6 @@
       }
     ],
     "name": "proposePlanController",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "lineId",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "referenceCommitment",
-        "type": "bytes32"
-      }
-    ],
-    "name": "recapitalizeLine",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "lineId",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "referenceCommitment",
-        "type": "bytes32"
-      }
-    ],
-    "name": "recordPremiumPayment",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -2586,19 +2107,6 @@
       }
     ],
     "name": "setPlanControls",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "claimId",
-        "type": "bytes32"
-      }
-    ],
-    "name": "settleClaimCase",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

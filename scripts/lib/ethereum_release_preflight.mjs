@@ -16,93 +16,141 @@ import {
   runtimeBytecodeBytes,
   runtimeBytecodeTemplateHash,
 } from "./ethereum_bytecode.mjs";
+import {
+  ETHEREUM_CONTRACT_NAMES,
+  RESERVE_VAULT_TEMPLATE,
+  protocolAbiPath,
+} from "./ethereum_contract_set.mjs";
 
 const execFileAsync = promisify(execFile);
 
+function hardhatArtifactPath(root, contractName) {
+  return resolve(
+    root,
+    `artifacts/hardhat/contracts/${contractName}.sol/${contractName}.json`
+  );
+}
+
+function equalJson(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 export async function runReleasePreflight(config, root = process.cwd()) {
-  const [{ stdout: headCommit }, { stdout: statusPorcelain }] = await Promise.all([
-    execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root }),
-    execFileAsync("git", ["status", "--porcelain=v1", "--untracked-files=all"], { cwd: root }),
-  ]);
+  const [{ stdout: headCommit }, { stdout: statusPorcelain }] =
+    await Promise.all([
+      execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root }),
+      execFileAsync(
+        "git",
+        ["status", "--porcelain=v1", "--untracked-files=all"],
+        { cwd: root }
+      ),
+    ]);
   validateSourceCheckout(config, {
     headCommit: headCommit.trim(),
     statusPorcelain,
   });
 
-  const hardhatArtifactPath = resolve(
+  const protocolArtifactPath = resolve(
     root,
-    "artifacts/hardhat/contracts/NakamaCoverageProtocol.sol/NakamaCoverageProtocol.json",
+    "shared/ethereum/protocol_contract.json"
   );
-  const protocolArtifactPath = resolve(root, "shared/ethereum/protocol_contract.json");
-  const protocolAbiPath = resolve(root, "shared/ethereum/NakamaCoverageProtocol.abi.json");
-  const releaseManifestPath = resolve(root, "deployments/ethereum-mainnet.release.json");
-  const [hardhatArtifactRaw, protocolArtifactRaw, protocolAbiRaw, releaseManifestRaw] = await Promise.all([
-    readFile(hardhatArtifactPath, "utf8"),
-    readFile(protocolArtifactPath, "utf8"),
-    readFile(protocolAbiPath, "utf8"),
-    readFile(releaseManifestPath, "utf8").catch(() => {
-      throw new Error(
-        "Missing deployments/ethereum-mainnet.release.json; copy the example only after audit and release approval",
-      );
-    }),
-  ]);
-  const hardhatArtifact = JSON.parse(hardhatArtifactRaw);
+  const releaseManifestPath = resolve(
+    root,
+    "deployments/ethereum-mainnet.release.json"
+  );
+  const [protocolArtifactRaw, releaseManifestRaw, ...artifactAndAbiRaw] =
+    await Promise.all([
+      readFile(protocolArtifactPath, "utf8"),
+      readFile(releaseManifestPath, "utf8").catch(() => {
+        throw new Error(
+          "Missing deployments/ethereum-mainnet.release.json; copy the example only after audit and release approval"
+        );
+      }),
+      ...ETHEREUM_CONTRACT_NAMES.flatMap((contractName) => [
+        readFile(hardhatArtifactPath(root, contractName), "utf8"),
+        readFile(resolve(root, protocolAbiPath(contractName)), "utf8"),
+      ]),
+    ]);
+
   const protocolArtifact = JSON.parse(protocolArtifactRaw);
-  const protocolAbi = JSON.parse(protocolAbiRaw);
   const releaseManifest = JSON.parse(releaseManifestRaw);
-  const protocolImmutableReferences = canonicalImmutableReferences(hardhatArtifact.immutableReferences);
-  const protocolRuntimeBytecodeTemplateHash = runtimeBytecodeTemplateHash(
-    hardhatArtifact.deployedBytecode,
-    protocolImmutableReferences,
-  );
-  const protocolCreationBytecodeHash = keccak256(hardhatArtifact.bytecode);
-  if (protocolArtifact.schemaVersion !== 2) {
-    throw new Error("Generated protocol artifact must use schemaVersion 2");
-  }
   if (
-    protocolArtifact.contracts?.NakamaCoverageProtocol?.runtimeBytecodeTemplateHash !==
-    protocolRuntimeBytecodeTemplateHash
+    protocolArtifact.schemaVersion !== 3 ||
+    protocolArtifact.chainFamily !== "eip155" ||
+    protocolArtifact.canonicalChain !== "eip155:1" ||
+    protocolArtifact.deploymentPlan?.transactionCount !== 1 ||
+    protocolArtifact.deploymentPlan?.entryContract !==
+      "NakamaProtocolFactory" ||
+    !equalJson(protocolArtifact.deploymentPlan?.factoryCreates, [
+      { contractName: "NakamaPolicyRegistry", nonce: 1 },
+      { contractName: "NakamaCoverageProtocol", nonce: 2 },
+    ]) ||
+    !equalJson(protocolArtifact.deploymentPlan?.templates, [
+      RESERVE_VAULT_TEMPLATE,
+    ])
   ) {
-    throw new Error("Generated protocol artifact template is stale relative to the Hardhat runtime bytecode");
+    throw new Error(
+      "Generated protocol artifact must use the canonical schema-v3 factory deployment plan"
+    );
   }
-  if (
-    JSON.stringify(protocolArtifact.contracts?.NakamaCoverageProtocol?.immutableReferences)
-      !== JSON.stringify(protocolImmutableReferences)
-  ) {
-    throw new Error("Generated protocol artifact immutable references are stale");
+
+  const contracts = {};
+  let factoryCreationBytecode;
+  for (const [index, contractName] of ETHEREUM_CONTRACT_NAMES.entries()) {
+    const hardhatArtifactRaw = artifactAndAbiRaw[index * 2];
+    const standaloneAbiRaw = artifactAndAbiRaw[index * 2 + 1];
+    const hardhatArtifact = JSON.parse(hardhatArtifactRaw);
+    const standaloneAbi = JSON.parse(standaloneAbiRaw);
+    const immutableReferences = canonicalImmutableReferences(
+      hardhatArtifact.immutableReferences
+    );
+    const contract = {
+      abi: hardhatArtifact.abi,
+      abiSha256: createHash("sha256").update(standaloneAbiRaw).digest("hex"),
+      creationBytecodeHash: keccak256(hardhatArtifact.bytecode),
+      creationBytecodeBytes: runtimeBytecodeBytes(hardhatArtifact.bytecode),
+      runtimeBytecodeTemplateHash: runtimeBytecodeTemplateHash(
+        hardhatArtifact.deployedBytecode,
+        immutableReferences
+      ),
+      runtimeBytecodeBytes: runtimeBytecodeBytes(
+        hardhatArtifact.deployedBytecode
+      ),
+      immutableReferences,
+    };
+    const generated = protocolArtifact.contracts?.[contractName];
+    if (!generated || !equalJson(generated, contract)) {
+      throw new Error(
+        `Generated ${contractName} artifact is stale relative to the Hardhat artifact and standalone ABI`
+      );
+    }
+    if (!equalJson(standaloneAbi, hardhatArtifact.abi)) {
+      throw new Error(
+        `${contractName} standalone ABI is stale relative to the Hardhat artifact`
+      );
+    }
+    if (contractName === "NakamaProtocolFactory") {
+      factoryCreationBytecode = hardhatArtifact.bytecode;
+    }
+    contracts[contractName] = contract;
   }
-  if (
-    protocolArtifact.contracts?.NakamaCoverageProtocol?.creationBytecodeHash
-      !== protocolCreationBytecodeHash
-  ) {
-    throw new Error("Generated protocol artifact creation bytecode hash is stale");
+  if (!factoryCreationBytecode) {
+    throw new Error("Compiled artifact is missing factory creation bytecode");
   }
-  if (
-    JSON.stringify(protocolAbi)
-      !== JSON.stringify(protocolArtifact.contracts?.NakamaCoverageProtocol?.abi)
-  ) {
-    throw new Error("Standalone protocol ABI is stale relative to the generated protocol artifact");
-  }
-  const protocolAbiSha256 = createHash("sha256").update(protocolAbiRaw).digest("hex");
-  if (protocolArtifact.contracts?.NakamaCoverageProtocol?.abiSha256 !== protocolAbiSha256) {
-    throw new Error("Standalone protocol ABI digest does not match the generated protocol artifact");
-  }
-  const protocolArtifactSha256 = createHash("sha256").update(protocolArtifactRaw).digest("hex");
+
+  const protocolArtifactSha256 = createHash("sha256")
+    .update(protocolArtifactRaw)
+    .digest("hex");
   validateReleaseManifest(config, releaseManifest, {
-    protocolCreationBytecodeHash,
-    protocolRuntimeBytecodeTemplateHash,
+    contracts,
     protocolArtifactSha256,
   });
 
   return {
     headCommit: headCommit.trim(),
-    protocolRuntimeBytecodeTemplateHash,
-    protocolImmutableReferences,
-    protocolCreationBytecodeHash,
+    contracts,
+    factoryCreationBytecode,
     protocolArtifactSha256,
-    protocolAbi,
-    protocolAbiSha256,
-    runtimeBytecodeBytes: runtimeBytecodeBytes(hardhatArtifact.deployedBytecode),
     releaseManifest,
   };
 }

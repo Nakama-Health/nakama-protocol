@@ -2,11 +2,10 @@
 pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+import {NakamaPolicyRegistry} from "./NakamaPolicyRegistry.sol";
 import {ReserveVault} from "./ReserveVault.sol";
 import {ProtocolTypes} from "./libraries/ProtocolTypes.sol";
 import {ReserveAccounting} from "./libraries/ReserveAccounting.sol";
@@ -16,7 +15,7 @@ import {ReserveAccounting} from "./libraries/ReserveAccounting.sol";
 /// strict-majority claim resolution without a global owner, proxy, or pause.
 /// @dev This is unaudited pre-mainnet code. Deployment tooling deliberately
 /// requires an explicit Ethereum mainnet confirmation and expected deployer.
-contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
+contract NakamaCoverageProtocol is ReentrancyGuard {
     using ReserveAccounting for ProtocolTypes.BalanceSheet;
 
     uint64 public constant CONTROLLER_DELAY = 2 days;
@@ -24,21 +23,16 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
     uint64 public constant PAUSE_COOLDOWN = 30 days;
     uint64 public constant MIN_CHALLENGE_WINDOW = 1 hours;
     uint64 public constant MAX_CHALLENGE_WINDOW = 30 days;
+    uint64 public constant MAX_COVERAGE_DURATION = 5 * 365 days;
     uint16 public constant MIN_ATTESTERS = 3;
     uint16 public constant MAX_ATTESTERS = 31;
     uint256 private constant VIRTUAL_ASSETS = 1;
     uint256 private constant VIRTUAL_SHARES = 1_000_000;
 
-    bytes32 public constant CLAIM_RECIPIENT_TYPEHASH =
-        keccak256("ClaimRecipient(bytes32 claimId,address recipient,uint256 nonce,uint256 deadline)");
-
     bytes32 private constant DOMAIN_ID_NAMESPACE = keccak256("NAKAMA_DOMAIN_V1");
     bytes32 private constant PLAN_ID_NAMESPACE = keccak256("NAKAMA_PLAN_V1");
     bytes32 private constant SERIES_ID_NAMESPACE = keccak256("NAKAMA_SERIES_V1");
     bytes32 private constant LINE_ID_NAMESPACE = keccak256("NAKAMA_FUNDING_LINE_V1");
-    bytes32 private constant OBLIGATION_ID_NAMESPACE = keccak256("NAKAMA_OBLIGATION_V1");
-    bytes32 private constant CLAIM_ID_NAMESPACE = keccak256("NAKAMA_CLAIM_V1");
-    bytes32 private constant CLAIM_OBLIGATION_NAMESPACE = keccak256("NAKAMA_CLAIM_OBLIGATION_V1");
 
     error AlreadyExists(bytes32 id);
     error DoesNotExist(bytes32 id);
@@ -50,23 +44,16 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
     error InvalidBinding();
     error InvalidFundingLineType();
     error CapitalCapExceeded(uint256 cap, uint256 nextFunded);
+    error CapitalCapTooLow(uint256 required, uint256 provided);
     error IntakeClosed();
     error PauseDurationInvalid();
     error PauseCooldownActive(uint64 availableAt);
     error ControllerDelayActive(uint64 validAfter);
     error InvalidAttesterSet();
     error DuplicateAttester(address attester);
-    error AlreadyAttested();
-    error DecisionAlreadyReached();
-    error ChallengeWindowOpen(uint64 closesAt);
     error ChallengeWindowClosed();
-    error ChallengeAlreadyUsed();
-    error NullifierAlreadyUsed(bytes32 nullifier);
-    error SignatureExpired();
-    error InvalidSignature();
     error ZeroShares();
     error SlippageExceeded(uint256 minimum, uint256 actual);
-    error RecapitalizationExceedsDeficit(uint256 deficit, uint256 amount);
     error InsufficientShares(uint256 available, uint256 requested);
     error VaultInsolvent(uint256 accounted, uint256 actual);
 
@@ -78,13 +65,6 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         address indexed controller,
         uint16 attesterThreshold,
         uint16 attesterCount
-    );
-    event PolicySeriesCreated(
-        bytes32 indexed planId,
-        bytes32 indexed seriesId,
-        address indexed assetToken,
-        uint64 challengeWindow,
-        bytes32 termsCommitment
     );
     event FundingLineOpened(
         bytes32 indexed planId,
@@ -101,6 +81,13 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         ProtocolTypes.FundingLineType flowKind,
         bytes32 referenceCommitment
     );
+    event PolicyPremiumCollected(
+        bytes32 indexed positionId,
+        bytes32 indexed premiumLineId,
+        bytes32 indexed coverageLineId,
+        address payer,
+        uint256 amount
+    );
     event CapitalSharesChanged(
         bytes32 indexed lineId,
         address indexed contributor,
@@ -114,26 +101,11 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         ProtocolTypes.ObligationStatus status,
         uint256 amount
     );
-    event ClaimCaseStateChanged(
+    event ObligationRecipientUpdated(
+        bytes32 indexed obligationId,
         bytes32 indexed claimId,
-        ProtocolTypes.ClaimStatus status,
-        uint256 approvedAmount,
-        bytes32 decisionCommitment
-    );
-    event ClaimAttested(
-        bytes32 indexed claimId,
-        uint8 indexed round,
-        address indexed attester,
-        bytes32 voteKey,
-        uint16 votes,
-        uint16 threshold
-    );
-    event ClaimChallenged(bytes32 indexed claimId, bytes32 indexed counterCommitment, uint64 decisionDeadline);
-    event ClaimRecipientAuthorized(
-        bytes32 indexed claimId,
-        address indexed claimant,
-        address indexed recipient,
-        uint256 nonce
+        address indexed previousRecipient,
+        address newRecipient
     );
     event ScopedControlChanged(
         bytes32 indexed scopeId,
@@ -152,9 +124,7 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
 
     mapping(bytes32 domainId => ProtocolTypes.Domain) private _domains;
     mapping(bytes32 planId => ProtocolTypes.Plan) private _plans;
-    mapping(bytes32 seriesId => ProtocolTypes.PolicySeries) private _series;
     mapping(bytes32 lineId => ProtocolTypes.FundingLine) private _fundingLines;
-    mapping(bytes32 claimId => ProtocolTypes.ClaimCase) private _claims;
     mapping(bytes32 obligationId => ProtocolTypes.Obligation) private _obligations;
 
     mapping(bytes32 domainId => mapping(address assetToken => ProtocolTypes.BalanceSheet)) private _domainSheets;
@@ -165,15 +135,18 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
     mapping(address vault => bool registered) public isReserveVault;
     mapping(bytes32 planId => address[] attesters) private _planAttesters;
     mapping(bytes32 planId => mapping(address attester => bool)) public isPlanAttester;
-    mapping(bytes32 claimId => mapping(uint8 round => mapping(address attester => bool))) public hasAttested;
-    mapping(bytes32 claimId => mapping(uint8 round => mapping(bytes32 voteKey => uint16))) public claimVoteCount;
-    mapping(bytes32 planId => mapping(address claimant => mapping(bytes32 nullifier => bool used)))
-        public nullifierUsed;
-
     mapping(bytes32 lineId => uint256 shares) public totalContributorShares;
     mapping(bytes32 lineId => mapping(address contributor => uint256 shares)) public contributorShares;
 
-    constructor() EIP712("Nakama Coverage Protocol", "1") {}
+    address public immutable deploymentFactory;
+    NakamaPolicyRegistry public immutable policyRegistry;
+
+    constructor(address policyRegistry_) {
+        if (policyRegistry_ == address(0) || policyRegistry_.code.length == 0) revert InvalidAddress();
+        deploymentFactory = msg.sender;
+        policyRegistry = NakamaPolicyRegistry(policyRegistry_);
+        if (policyRegistry.core() != address(this)) revert InvalidBinding();
+    }
 
     // ---------------------------------------------------------------------
     // Deterministic identifiers
@@ -193,14 +166,6 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
 
     function deriveFundingLineId(bytes32 planId, bytes32 salt) public pure returns (bytes32) {
         return keccak256(abi.encode(LINE_ID_NAMESPACE, planId, salt));
-    }
-
-    function deriveObligationId(bytes32 lineId, bytes32 salt) public pure returns (bytes32) {
-        return keccak256(abi.encode(OBLIGATION_ID_NAMESPACE, lineId, salt));
-    }
-
-    function deriveClaimId(bytes32 planId, address claimant, bytes32 nullifier) public pure returns (bytes32) {
-        return keccak256(abi.encode(CLAIM_ID_NAMESPACE, planId, claimant, nullifier));
     }
 
     // ---------------------------------------------------------------------
@@ -286,28 +251,56 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         bytes32 planId,
         bytes32 salt,
         address assetToken,
+        bytes32 coverageLineSalt,
+        bytes32 premiumLineSalt,
+        bytes32 eligibilityRoot,
+        uint64 coverageDuration,
+        uint64 initialDecisionWindow,
         uint64 challengeWindow,
+        uint256 coverageLimit,
+        uint256 premiumAmount,
+        uint256 exposureCap,
         bytes32 termsCommitment
     ) external returns (bytes32 seriesId) {
         ProtocolTypes.Plan storage plan_ = _requirePlanController(planId);
         _requirePlanIntakeOpen(plan_);
         if (
-            salt == bytes32(0) || assetToken == address(0) || termsCommitment == bytes32(0)
+            salt == bytes32(0) || coverageLineSalt == bytes32(0) || premiumLineSalt == bytes32(0)
+                || assetToken == address(0) || termsCommitment == bytes32(0)
                 || reserveVaults[plan_.domainId][assetToken] == address(0)
         ) revert InvalidBinding();
-        if (challengeWindow < MIN_CHALLENGE_WINDOW || challengeWindow > MAX_CHALLENGE_WINDOW) {
+        if (
+            initialDecisionWindow < MIN_CHALLENGE_WINDOW || initialDecisionWindow > MAX_CHALLENGE_WINDOW
+                || challengeWindow < MIN_CHALLENGE_WINDOW || challengeWindow > MAX_CHALLENGE_WINDOW
+        ) {
             revert ChallengeWindowClosed();
         }
+        if (
+            coverageDuration == 0 || coverageDuration > MAX_COVERAGE_DURATION || coverageLimit == 0
+                || premiumAmount == 0
+                || premiumAmount > coverageLimit
+                || exposureCap < coverageLimit
+        ) revert InvalidAmount();
         seriesId = deriveSeriesId(planId, salt);
-        if (_series[seriesId].planId != bytes32(0)) revert AlreadyExists(seriesId);
-        _series[seriesId] = ProtocolTypes.PolicySeries({
+        bytes32 coverageLineId = deriveFundingLineId(planId, coverageLineSalt);
+        bytes32 premiumLineId = deriveFundingLineId(planId, premiumLineSalt);
+        if (coverageLineId == premiumLineId) revert InvalidBinding();
+        policyRegistry.registerPolicySeries(seriesId, ProtocolTypes.PolicySeries({
             planId: planId,
+            coverageLineId: coverageLineId,
+            premiumLineId: premiumLineId,
             assetToken: assetToken,
+            eligibilityRoot: eligibilityRoot,
+            coverageDuration: coverageDuration,
+            initialDecisionWindow: initialDecisionWindow,
             challengeWindow: challengeWindow,
-            active: true,
-            termsCommitment: termsCommitment
-        });
-        emit PolicySeriesCreated(planId, seriesId, assetToken, challengeWindow, termsCommitment);
+            attesterThreshold: plan_.attesterThreshold,
+            coverageLimit: coverageLimit,
+            premiumAmount: premiumAmount,
+            exposureCap: exposureCap,
+            termsCommitment: termsCommitment,
+            outstandingExposure: 0
+        }));
     }
 
     function openFundingLine(
@@ -320,12 +313,23 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
     ) external returns (bytes32 lineId) {
         ProtocolTypes.Plan storage plan_ = _requirePlanController(planId);
         _requirePlanIntakeOpen(plan_);
-        ProtocolTypes.PolicySeries storage series_ = _series[seriesId];
+        ProtocolTypes.PolicySeries memory series_ = policyRegistry.getPolicySeries(seriesId);
         if (
-            series_.planId != planId || !series_.active || salt == bytes32(0) || capitalCap == 0
-                || termsCommitment == bytes32(0)
+            series_.planId != planId || salt == bytes32(0) || capitalCap == 0 || termsCommitment == bytes32(0)
         ) revert InvalidBinding();
         lineId = deriveFundingLineId(planId, salt);
+        if (lineId != series_.coverageLineId && lineId != series_.premiumLineId) revert InvalidBinding();
+        if (lineId == series_.premiumLineId && lineType != ProtocolTypes.FundingLineType.PremiumIncome) {
+            revert InvalidFundingLineType();
+        }
+        if (lineId == series_.coverageLineId && lineType == ProtocolTypes.FundingLineType.PremiumIncome) {
+            revert InvalidFundingLineType();
+        }
+        uint256 requiredCap = lineId == series_.coverageLineId ? series_.coverageLimit : 0;
+        if (lineId == series_.premiumLineId && series_.premiumAmount > requiredCap) {
+            requiredCap = series_.premiumAmount;
+        }
+        if (capitalCap < requiredCap) revert CapitalCapTooLow(requiredCap, capitalCap);
         if (_fundingLines[lineId].planId != bytes32(0)) revert AlreadyExists(lineId);
         _fundingLines[lineId] = ProtocolTypes.FundingLine({
             planId: planId,
@@ -341,6 +345,46 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         });
         emit FundingLineOpened(planId, seriesId, lineId, series_.assetToken, lineType, capitalCap);
         emit LedgerInitialized(lineId, series_.assetToken);
+    }
+
+    /// @notice Activates one immutable-series position for the caller. The
+    /// caller is both holder and premium payer; renewal requires a new series.
+    function activatePolicyPosition(
+        bytes32 seriesId,
+        bytes32[] calldata eligibilityProof
+    ) external nonReentrant returns (bytes32 positionId) {
+        ProtocolTypes.PolicySeries memory series_ = policyRegistry.getPolicySeries(seriesId);
+        bytes32 coverageLineId = series_.coverageLineId;
+        bytes32 premiumLineId = series_.premiumLineId;
+        ProtocolTypes.FundingLine storage coverageLine = _requireLineIntakeOpen(coverageLineId);
+        ProtocolTypes.FundingLine storage premiumLine = _requireLineIntakeOpen(premiumLineId);
+        if (
+            coverageLine.seriesId != seriesId || premiumLine.seriesId != seriesId
+                || coverageLine.planId != series_.planId || premiumLine.planId != series_.planId
+                || coverageLine.assetToken != series_.assetToken || premiumLine.assetToken != series_.assetToken
+        ) revert InvalidBinding();
+        if (premiumLine.lineType != ProtocolTypes.FundingLineType.PremiumIncome) {
+            revert InvalidFundingLineType();
+        }
+        positionId = policyRegistry.activatePolicyPosition(seriesId, msg.sender, eligibilityProof);
+        if (
+            coverageLine.lineType == ProtocolTypes.FundingLineType.Backstop
+                && totalContributorShares[coverageLineId] == 0
+        ) revert ZeroShares();
+        _collectPolicyPremium(
+            positionId,
+            premiumLineId,
+            coverageLineId,
+            msg.sender,
+            series_.premiumAmount,
+            series_.termsCommitment
+        );
+        _bookOpenExposure(coverageLine, coverageLineId, series_.coverageLimit);
+    }
+
+    function expirePolicyPosition(bytes32 positionId) external nonReentrant {
+        (bytes32 coverageLineId, uint256 releasedCoverage) = policyRegistry.expirePolicyPosition(positionId);
+        _releaseOpenExposure(_fundingLines[coverageLineId], coverageLineId, releasedCoverage);
     }
 
     // ---------------------------------------------------------------------
@@ -419,14 +463,6 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         _fundLine(lineId, msg.sender, amount, referenceCommitment);
     }
 
-    function recordPremiumPayment(bytes32 lineId, uint256 amount, bytes32 referenceCommitment)
-        external
-        nonReentrant
-    {
-        _requireLineType(lineId, ProtocolTypes.FundingLineType.PremiumIncome);
-        _fundLine(lineId, msg.sender, amount, referenceCommitment);
-    }
-
     function fundSubsidy(bytes32 lineId, uint256 amount, bytes32 referenceCommitment) external nonReentrant {
         _requireLineType(lineId, ProtocolTypes.FundingLineType.Subsidy);
         _fundLine(lineId, msg.sender, amount, referenceCommitment);
@@ -459,20 +495,6 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         _requireLineType(lineId, ProtocolTypes.FundingLineType.Backstop);
         if (totalContributorShares[lineId] == 0) revert ZeroShares();
         _fundLine(lineId, msg.sender, amount, referenceCommitment);
-    }
-
-    /// @notice Permissionlessly cures an already-finalized funding-line deficit
-    /// without reopening controller-gated intake or minting contributor shares.
-    function recapitalizeLine(bytes32 lineId, uint256 amount, bytes32 referenceCommitment)
-        external
-        nonReentrant
-    {
-        ProtocolTypes.FundingLine storage line_ = _requireLine(lineId);
-        ProtocolTypes.BalanceSheet storage sheet = _lineSheets[lineId];
-        if (sheet.owed <= sheet.funded) revert InvalidState();
-        uint256 deficit = sheet.owed - sheet.funded;
-        if (amount > deficit) revert RecapitalizationExceedsDeficit(deficit, amount);
-        _fundLineExact(line_, lineId, msg.sender, amount, referenceCommitment, false);
     }
 
     function withdrawReserveCapital(bytes32 lineId, uint256 shares, uint256 minAssets, address recipient)
@@ -525,12 +547,7 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         ProtocolTypes.FundingLine storage line_ = _fundingLines[obligation.lineId];
         _requireValidAssetRecipient(line_, obligation.recipient);
         if (obligation.claimId != bytes32(0)) {
-            ProtocolTypes.ClaimCase storage claim = _claims[obligation.claimId];
-            if (claim.status != ProtocolTypes.ClaimStatus.FinalizedApproved) revert InvalidState();
-            claim.status = ProtocolTypes.ClaimStatus.Settled;
-            emit ClaimCaseStateChanged(
-                obligation.claimId, claim.status, claim.approvedAmount, claim.finalDecisionCommitment
-            );
+            policyRegistry.markClaimSettled(obligation.claimId, obligationId);
         }
 
         uint256 amount = obligation.outstanding;
@@ -546,94 +563,44 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         emit ObligationStatusChanged(obligationId, obligation.lineId, obligation.status, amount);
     }
 
-    function settleClaimCase(bytes32 claimId) external {
-        ProtocolTypes.ClaimCase storage claim = _requireClaim(claimId);
-        if (claim.status != ProtocolTypes.ClaimStatus.FinalizedApproved || claim.obligationId == bytes32(0)) {
-            revert InvalidState();
-        }
-        settleObligation(claim.obligationId);
-    }
-
     // ---------------------------------------------------------------------
-    // Privacy-minimized claim commitments and one challenge round
+    // Registry-backed positions, claims, votes, and recipient authorization
     // ---------------------------------------------------------------------
 
     function openClaimCase(
-        bytes32 lineId,
+        bytes32 positionId,
         bytes32 claimCommitment,
         bytes32 nullifier,
         address payoutRecipient,
         uint256 requestedAmount
-    ) external returns (bytes32 claimId) {
-        ProtocolTypes.FundingLine storage line_ = _requireLine(lineId);
-        if (claimCommitment == bytes32(0) || nullifier == bytes32(0) || claimCommitment == nullifier) {
-            revert InvalidCommitment();
-        }
-        if (requestedAmount == 0) revert InvalidAmount();
-        ProtocolTypes.PolicySeries storage series_ = _series[line_.seriesId];
-        if (series_.planId != line_.planId || series_.assetToken != line_.assetToken) revert InvalidBinding();
+    ) external nonReentrant returns (bytes32 claimId) {
+        ProtocolTypes.PolicyPosition memory position = policyRegistry.getPolicyPosition(positionId);
+        ProtocolTypes.FundingLine storage line_ = _requireLine(position.coverageLineId);
         _requireValidAssetRecipient(line_, payoutRecipient);
-        if (nullifierUsed[line_.planId][msg.sender][nullifier]) revert NullifierAlreadyUsed(nullifier);
-
-        claimId = deriveClaimId(line_.planId, msg.sender, nullifier);
-        if (_claims[claimId].status != ProtocolTypes.ClaimStatus.None) revert AlreadyExists(claimId);
-        nullifierUsed[line_.planId][msg.sender][nullifier] = true;
-        _claims[claimId] = ProtocolTypes.ClaimCase({
-            planId: line_.planId,
-            seriesId: line_.seriesId,
-            lineId: lineId,
-            claimCommitment: claimCommitment,
-            nullifier: nullifier,
-            claimant: msg.sender,
-            payoutRecipient: payoutRecipient,
-            requestedAmount: requestedAmount,
-            approvedAmount: 0,
-            pendingLiability: 0,
-            recipientNonce: 0,
-            decisionDeadline: 0,
-            round: 0,
-            fallbackApproved: false,
-            roundOneDecisionReady: false,
-            roundOneApproved: false,
-            status: ProtocolTypes.ClaimStatus.Open,
-            fallbackDecisionCommitment: bytes32(0),
-            roundOneDecisionCommitment: bytes32(0),
-            finalDecisionCommitment: bytes32(0),
-            obligationId: bytes32(0)
-        });
-        emit ClaimCaseStateChanged(claimId, ProtocolTypes.ClaimStatus.Open, 0, claimCommitment);
-    }
-
-    function claimRecipientDigest(bytes32 claimId, address recipient, uint256 nonce, uint256 deadline)
-        public
-        view
-        returns (bytes32)
-    {
-        return _hashTypedDataV4(
-            keccak256(abi.encode(CLAIM_RECIPIENT_TYPEHASH, claimId, recipient, nonce, deadline))
+        bytes32 coverageLineId;
+        (claimId, coverageLineId) = policyRegistry.openClaimCase(
+            positionId, msg.sender, claimCommitment, nullifier, payoutRecipient, requestedAmount
         );
+        if (coverageLineId != position.coverageLineId) revert InvalidBinding();
+        _moveOpenExposureToPending(line_, coverageLineId, requestedAmount);
     }
 
     function authorizeClaimRecipient(bytes32 claimId, address recipient, uint256 deadline, bytes calldata signature)
         external
         nonReentrant
     {
-        ProtocolTypes.ClaimCase storage claim = _requireClaim(claimId);
+        ProtocolTypes.ClaimCase memory claim = policyRegistry.getClaim(claimId);
         _requireValidAssetRecipient(_fundingLines[claim.lineId], recipient);
-        if (block.timestamp > deadline) revert SignatureExpired();
-        if (
-            claim.status != ProtocolTypes.ClaimStatus.Open
-                && claim.status != ProtocolTypes.ClaimStatus.Provisional
-                && claim.status != ProtocolTypes.ClaimStatus.Challenged
-        ) revert InvalidState();
-        uint256 nonce = claim.recipientNonce;
-        bytes32 digest = claimRecipientDigest(claimId, recipient, nonce, deadline);
-        if (!SignatureChecker.isValidSignatureNowCalldata(claim.claimant, digest, signature)) {
-            revert InvalidSignature();
+        policyRegistry.authorizeClaimRecipient(claimId, recipient, deadline, signature);
+        if (claim.status == ProtocolTypes.ClaimStatus.FinalizedApproved) {
+            ProtocolTypes.Obligation storage obligation = _requireObligation(claim.obligationId);
+            if (obligation.claimId != claimId || obligation.status == ProtocolTypes.ObligationStatus.Settled) {
+                revert InvalidState();
+            }
+            address previousRecipient = obligation.recipient;
+            obligation.recipient = recipient;
+            emit ObligationRecipientUpdated(claim.obligationId, claimId, previousRecipient, recipient);
         }
-        claim.recipientNonce = nonce + 1;
-        claim.payoutRecipient = recipient;
-        emit ClaimRecipientAuthorized(claimId, claim.claimant, recipient, nonce);
     }
 
     function attestClaim(
@@ -642,106 +609,30 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         uint256 approvedAmount,
         bytes32 decisionCommitment
     ) external {
-        ProtocolTypes.ClaimCase storage claim = _requireClaim(claimId);
-        uint8 round = claim.round;
-        if (round == 0) {
-            if (claim.status != ProtocolTypes.ClaimStatus.Open) revert InvalidState();
-        } else {
-            if (claim.status != ProtocolTypes.ClaimStatus.Challenged) revert InvalidState();
-            if (block.timestamp >= claim.decisionDeadline) revert ChallengeWindowClosed();
-            if (claim.roundOneDecisionReady) revert DecisionAlreadyReached();
-        }
+        ProtocolTypes.ClaimCase memory claim = policyRegistry.getClaim(claimId);
         if (!isPlanAttester[claim.planId][msg.sender]) revert Unauthorized();
-        if (hasAttested[claimId][round][msg.sender]) revert AlreadyAttested();
-        if (decisionCommitment == bytes32(0)) revert InvalidCommitment();
-        if ((approve && (approvedAmount == 0 || approvedAmount > claim.requestedAmount)) || (!approve && approvedAmount != 0)) {
-            revert InvalidAmount();
-        }
-
-        hasAttested[claimId][round][msg.sender] = true;
-        bytes32 voteKey = keccak256(abi.encode(approve, approvedAmount, decisionCommitment));
-        uint16 votes = ++claimVoteCount[claimId][round][voteKey];
-        uint16 threshold = _plans[claim.planId].attesterThreshold;
-        emit ClaimAttested(claimId, round, msg.sender, voteKey, votes, threshold);
-
-        if (votes >= threshold) {
-            uint64 challengeWindow = _series[claim.seriesId].challengeWindow;
-            if (round == 0) {
-                uint256 nextLiability = approve ? approvedAmount : 0;
-                _replacePendingClaimLiability(claim.lineId, claim.pendingLiability, nextLiability);
-                claim.pendingLiability = nextLiability;
-                claim.fallbackApproved = approve;
-                claim.approvedAmount = approvedAmount;
-                claim.fallbackDecisionCommitment = decisionCommitment;
-                claim.decisionDeadline = uint64(block.timestamp) + challengeWindow;
-                claim.status = ProtocolTypes.ClaimStatus.Provisional;
-                emit ClaimCaseStateChanged(claimId, claim.status, approvedAmount, decisionCommitment);
-            } else {
-                uint256 nextLiability = approve ? approvedAmount : 0;
-                _replacePendingClaimLiability(claim.lineId, claim.pendingLiability, nextLiability);
-                claim.pendingLiability = nextLiability;
-                claim.roundOneDecisionReady = true;
-                claim.roundOneApproved = approve;
-                claim.approvedAmount = approvedAmount;
-                claim.roundOneDecisionCommitment = decisionCommitment;
-                emit ClaimCaseStateChanged(claimId, claim.status, approvedAmount, decisionCommitment);
-            }
-        }
+        policyRegistry.attestClaim(claimId, msg.sender, approve, approvedAmount, decisionCommitment);
     }
 
     function challengeClaim(bytes32 claimId, bytes32 counterCommitment) external {
-        ProtocolTypes.ClaimCase storage claim = _requireClaim(claimId);
-        if (msg.sender != claim.claimant) revert Unauthorized();
-        if (claim.round != 0) revert ChallengeAlreadyUsed();
-        if (claim.status != ProtocolTypes.ClaimStatus.Provisional) revert InvalidState();
-        if (block.timestamp >= claim.decisionDeadline) revert ChallengeWindowClosed();
-        if (counterCommitment == bytes32(0)) revert InvalidCommitment();
-        claim.round = 1;
-        claim.status = ProtocolTypes.ClaimStatus.Challenged;
-        claim.decisionDeadline = uint64(block.timestamp) + _series[claim.seriesId].challengeWindow;
-        emit ClaimChallenged(claimId, counterCommitment, claim.decisionDeadline);
-        emit ClaimCaseStateChanged(claimId, claim.status, claim.approvedAmount, counterCommitment);
+        policyRegistry.challengeClaim(claimId, msg.sender, counterCommitment);
     }
 
-    function finalizeClaimCase(bytes32 claimId) external returns (bytes32 obligationId) {
-        ProtocolTypes.ClaimCase storage claim = _requireClaim(claimId);
-        if (
-            claim.status != ProtocolTypes.ClaimStatus.Provisional
-                && claim.status != ProtocolTypes.ClaimStatus.Challenged
-        ) revert InvalidState();
-        if (block.timestamp < claim.decisionDeadline) revert ChallengeWindowOpen(claim.decisionDeadline);
-
-        bool approved = claim.round == 1 && claim.roundOneDecisionReady
-            ? claim.roundOneApproved
-            : claim.fallbackApproved;
-        bytes32 decisionCommitment = claim.round == 1 && claim.roundOneDecisionReady
-            ? claim.roundOneDecisionCommitment
-            : claim.fallbackDecisionCommitment;
-        uint256 approvedAmount = approved ? claim.approvedAmount : 0;
-        claim.finalDecisionCommitment = decisionCommitment;
-
-        if (approved) {
-            obligationId = keccak256(abi.encode(CLAIM_OBLIGATION_NAMESPACE, claimId));
-            claim.obligationId = obligationId;
-            claim.status = ProtocolTypes.ClaimStatus.FinalizedApproved;
+    function finalizeClaimCase(bytes32 claimId) external nonReentrant returns (bytes32 obligationId) {
+        NakamaPolicyRegistry.ClaimFinalization memory result = policyRegistry.finalizeClaimCase(claimId);
+        _finalizePendingClaim(_fundingLines[result.lineId], result.lineId, result.requestedAmount, result.approvedAmount);
+        if (result.approved) {
+            _requireValidAssetRecipient(_fundingLines[result.lineId], result.payoutRecipient);
+            obligationId = result.obligationId;
             _createObligation(
                 obligationId,
-                claim.lineId,
+                result.lineId,
                 claimId,
-                claim.payoutRecipient,
-                approvedAmount,
-                decisionCommitment
+                result.payoutRecipient,
+                result.approvedAmount,
+                result.decisionCommitment
             );
-            claim.pendingLiability = 0;
-        } else {
-            if (claim.pendingLiability != 0) {
-                _releasePendingClaimLiability(claim.lineId, claim.pendingLiability);
-                claim.pendingLiability = 0;
-            }
-            claim.approvedAmount = 0;
-            claim.status = ProtocolTypes.ClaimStatus.FinalizedDenied;
         }
-        emit ClaimCaseStateChanged(claimId, claim.status, approvedAmount, decisionCommitment);
     }
 
     // ---------------------------------------------------------------------
@@ -756,18 +647,8 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         return _requirePlan(planId);
     }
 
-    function getPolicySeries(bytes32 seriesId) external view returns (ProtocolTypes.PolicySeries memory) {
-        ProtocolTypes.PolicySeries storage series_ = _series[seriesId];
-        if (series_.planId == bytes32(0)) revert DoesNotExist(seriesId);
-        return series_;
-    }
-
     function getFundingLine(bytes32 lineId) external view returns (ProtocolTypes.FundingLine memory) {
         return _requireLine(lineId);
-    }
-
-    function getClaim(bytes32 claimId) external view returns (ProtocolTypes.ClaimCase memory) {
-        return _requireClaim(claimId);
     }
 
     function getObligation(bytes32 obligationId) external view returns (ProtocolTypes.Obligation memory) {
@@ -846,21 +727,10 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
 
     function _fundLine(bytes32 lineId, address payer, uint256 amount, bytes32 referenceCommitment) private {
         ProtocolTypes.FundingLine storage line_ = _requireLineIntakeOpen(lineId);
-        _fundLineExact(line_, lineId, payer, amount, referenceCommitment, true);
-    }
-
-    function _fundLineExact(
-        ProtocolTypes.FundingLine storage line_,
-        bytes32 lineId,
-        address payer,
-        uint256 amount,
-        bytes32 referenceCommitment,
-        bool enforceCapitalCap
-    ) private {
         if (amount == 0) revert InvalidAmount();
         if (referenceCommitment == bytes32(0)) revert InvalidCommitment();
         uint256 nextFunded = _lineSheets[lineId].funded + amount;
-        if (enforceCapitalCap && nextFunded > line_.capitalCap) {
+        if (nextFunded > line_.capitalCap) {
             revert CapitalCapExceeded(line_.capitalCap, nextFunded);
         }
 
@@ -873,6 +743,59 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
 
         ReserveVault(reserveVaults[domainId][line_.assetToken]).depositFrom(payer, amount);
         emit FundingFlowRecorded(lineId, payer, amount, line_.lineType, referenceCommitment);
+    }
+
+    /// @dev Premiums are accepted only as part of an atomic position
+    /// activation. A distinct PremiumIncome line records provenance, then the
+    /// same transaction credits the assets to that position's claims-paying
+    /// coverage line. The mandatory receipt does not consume the voluntary
+    /// capital cap, so third-party pre-funding cannot make enrollment fail.
+    function _collectPolicyPremium(
+        bytes32 positionId,
+        bytes32 premiumLineId,
+        bytes32 coverageLineId,
+        address payer,
+        uint256 amount,
+        bytes32 referenceCommitment
+    ) private {
+        ProtocolTypes.FundingLine storage premiumLine = _requireLineIntakeOpen(premiumLineId);
+        ProtocolTypes.FundingLine storage coverageLine = _requireLineIntakeOpen(coverageLineId);
+        if (premiumLine.lineType != ProtocolTypes.FundingLineType.PremiumIncome) {
+            revert InvalidFundingLineType();
+        }
+        if (
+            premiumLine.planId != coverageLine.planId || premiumLine.seriesId != coverageLine.seriesId
+                || premiumLine.assetToken != coverageLine.assetToken || amount == 0
+        ) revert InvalidBinding();
+        if (referenceCommitment == bytes32(0)) revert InvalidCommitment();
+        if (amount > premiumLine.capitalCap) {
+            revert CapitalCapExceeded(premiumLine.capitalCap, amount);
+        }
+
+        premiumLine.grossFunded += amount;
+        if (premiumLineId != coverageLineId) {
+            // The distinct premium line is an attribution ledger, never a
+            // custody sink. Its receipt is consumed by the immutable coverage
+            // destination in the same transaction.
+            premiumLine.grossSpent += amount;
+            coverageLine.grossFunded += amount;
+        }
+
+        bytes32 planId = coverageLine.planId;
+        bytes32 domainId = _plans[planId].domainId;
+        _lineSheets[coverageLineId].bookFunding(amount);
+        _planSheets[planId][coverageLine.assetToken].bookFunding(amount);
+        _domainSheets[domainId][coverageLine.assetToken].bookFunding(amount);
+
+        ReserveVault(reserveVaults[domainId][coverageLine.assetToken]).depositFrom(payer, amount);
+        emit FundingFlowRecorded(
+            premiumLineId,
+            payer,
+            amount,
+            ProtocolTypes.FundingLineType.PremiumIncome,
+            referenceCommitment
+        );
+        emit PolicyPremiumCollected(positionId, premiumLineId, coverageLineId, payer, amount);
     }
 
     function _createObligation(
@@ -899,35 +822,56 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
             status: ProtocolTypes.ObligationStatus.Proposed,
             reasonCommitment: reasonCommitment
         });
-        _convertPendingClaimToObligation(lineId, amount);
         emit ObligationStatusChanged(obligationId, lineId, ProtocolTypes.ObligationStatus.Proposed, amount);
     }
 
-    function _replacePendingClaimLiability(bytes32 lineId, uint256 previousAmount, uint256 nextAmount) private {
-        ProtocolTypes.FundingLine storage line_ = _fundingLines[lineId];
+    function _bookOpenExposure(
+        ProtocolTypes.FundingLine storage line_,
+        bytes32 lineId,
+        uint256 amount
+    ) private {
         bytes32 planId = line_.planId;
         bytes32 domainId = _plans[planId].domainId;
-        _lineSheets[lineId].replacePendingClaim(previousAmount, nextAmount);
-        _planSheets[planId][line_.assetToken].replacePendingClaim(previousAmount, nextAmount);
-        _domainSheets[domainId][line_.assetToken].replacePendingClaim(previousAmount, nextAmount);
+        _lineSheets[lineId].bookOpenExposure(amount);
+        _planSheets[planId][line_.assetToken].recordAggregateOpenExposure(amount);
+        _domainSheets[domainId][line_.assetToken].recordAggregateOpenExposure(amount);
     }
 
-    function _convertPendingClaimToObligation(bytes32 lineId, uint256 amount) private {
-        ProtocolTypes.FundingLine storage line_ = _fundingLines[lineId];
+    function _moveOpenExposureToPending(
+        ProtocolTypes.FundingLine storage line_,
+        bytes32 lineId,
+        uint256 amount
+    ) private {
         bytes32 planId = line_.planId;
         bytes32 domainId = _plans[planId].domainId;
-        _lineSheets[lineId].convertPendingClaimToObligation(amount);
-        _planSheets[planId][line_.assetToken].convertPendingClaimToObligation(amount);
-        _domainSheets[domainId][line_.assetToken].convertPendingClaimToObligation(amount);
+        _lineSheets[lineId].moveOpenExposureToPending(amount);
+        _planSheets[planId][line_.assetToken].moveOpenExposureToPending(amount);
+        _domainSheets[domainId][line_.assetToken].moveOpenExposureToPending(amount);
     }
 
-    function _releasePendingClaimLiability(bytes32 lineId, uint256 amount) private {
-        ProtocolTypes.FundingLine storage line_ = _fundingLines[lineId];
+    function _finalizePendingClaim(
+        ProtocolTypes.FundingLine storage line_,
+        bytes32 lineId,
+        uint256 requestedAmount,
+        uint256 approvedAmount
+    ) private {
         bytes32 planId = line_.planId;
         bytes32 domainId = _plans[planId].domainId;
-        _lineSheets[lineId].releasePendingClaim(amount);
-        _planSheets[planId][line_.assetToken].releasePendingClaim(amount);
-        _domainSheets[domainId][line_.assetToken].releasePendingClaim(amount);
+        _lineSheets[lineId].finalizePendingClaim(requestedAmount, approvedAmount);
+        _planSheets[planId][line_.assetToken].finalizePendingClaim(requestedAmount, approvedAmount);
+        _domainSheets[domainId][line_.assetToken].finalizePendingClaim(requestedAmount, approvedAmount);
+    }
+
+    function _releaseOpenExposure(
+        ProtocolTypes.FundingLine storage line_,
+        bytes32 lineId,
+        uint256 amount
+    ) private {
+        bytes32 planId = line_.planId;
+        bytes32 domainId = _plans[planId].domainId;
+        _lineSheets[lineId].releaseOpenExposure(amount);
+        _planSheets[planId][line_.assetToken].releaseOpenExposure(amount);
+        _domainSheets[domainId][line_.assetToken].releaseOpenExposure(amount);
     }
 
     function _bookReservation(bytes32 lineId, uint256 amount) private {
@@ -960,7 +904,10 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         uint256 totalShares = totalContributorShares[lineId];
         uint256 pricingEquity;
         if (totalShares == 0) {
-            if (sheet.owed != 0 || sheet.pendingClaims != 0 || sheet.reserved != 0) {
+            if (
+                sheet.owed != 0 || sheet.pendingClaims != 0 || sheet.openExposure != 0
+                    || sheet.reserved != 0
+            ) {
                 revert InvalidState();
             }
             // A virtual-share residual can remain after the last honest exit.
@@ -1000,8 +947,8 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         view
     {
         if (
-            recipient == address(0) || recipient == address(this) || recipient == line_.assetToken
-                || isReserveVault[recipient]
+            recipient == address(0) || recipient == address(this) || recipient == deploymentFactory
+                || recipient == address(policyRegistry) || recipient == line_.assetToken || isReserveVault[recipient]
         ) revert InvalidAddress();
     }
 
@@ -1039,11 +986,6 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         if (line_.planId == bytes32(0)) revert DoesNotExist(lineId);
     }
 
-    function _requireClaim(bytes32 claimId) private view returns (ProtocolTypes.ClaimCase storage claim) {
-        claim = _claims[claimId];
-        if (claim.status == ProtocolTypes.ClaimStatus.None) revert DoesNotExist(claimId);
-    }
-
     function _requireObligation(bytes32 obligationId)
         private
         view
@@ -1071,7 +1013,7 @@ contract NakamaCoverageProtocol is EIP712, ReentrancyGuard {
         line_ = _requireLine(lineId);
         ProtocolTypes.Plan storage plan_ = _plans[line_.planId];
         _requirePlanIntakeOpen(plan_);
-        if (!line_.active || !_series[line_.seriesId].active) revert IntakeClosed();
+        if (!line_.active) revert IntakeClosed();
     }
 
     function _setBoundedPause(uint64 currentPauseUntil, uint64 lastPauseStarted, uint64 nextPauseUntil)

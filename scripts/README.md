@@ -6,7 +6,7 @@ This directory contains the repository's command-line helpers.
 
 ### Verification
 
-- `ethereum_mainnet_preflight.mjs` validates the approved source, artifact, signer, Ethereum chain ID, deployer balance, and EIP-170 size without sending a transaction
+- `ethereum_mainnet_preflight.mjs` validates the approved source, four-contract artifact set, signer, Ethereum chain ID, deployer balance, reconciled signer nonce, latest block gas limit, the exact factory deployment estimate against EIP-7825, every EIP-170 runtime, and every EIP-3860 initcode size without sending a transaction
 - `check_public_repo_hygiene.mjs` blocks tracked secrets, local artifacts, and private references
 - `check_semantic_readiness.mjs` blocks retired pool-era language from active protocol, audit, script, and documentation surfaces
 - `check_dependency_licenses.mjs` audits npm and Cargo dependency licenses
@@ -21,7 +21,7 @@ This directory contains the repository's command-line helpers.
 
 ### Generation
 
-- `generate_ethereum_contract.mjs` produces the deterministic Ethereum ABI and bytecode-hash artifact at `shared/ethereum/protocol_contract.json`
+- `generate_ethereum_contract.mjs` produces the schema-v3 factory/core/registry/vault artifact at `shared/ethereum/protocol_contract.json` and four standalone ABIs
 - `generate_protocol_contract.ts` regenerates checked-in shared artifacts
 - `generate_schema_metadata_hash.ts` and `generate_outcome_rule_hashes.ts` regenerate deterministic schema-related outputs
 - `generate_standard_health_outcomes_schema.ts` rebuilds the standard schema definition
@@ -33,10 +33,10 @@ This directory contains the repository's command-line helpers.
 
 ### Ethereum mainnet release
 
-- `deploy_ethereum_mainnet.ts` deploys the immutable `NakamaCoverageProtocol` only after the same fail-closed release checks used by preflight
-- `promote_ethereum_mainnet_manifest.mjs` independently verifies an audited intermediate receipt against canonical finalized Ethereum state and the fixed Sourcify v2 exact-match endpoint, then binds the approved artifacts and exact SDK ABI into the final manifest
-- `lib/ethereum_deploy_guard.mjs` validates operator-supplied deployment intent, source, release approval, signer, balance, network, and runtime size
-- `lib/ethereum_release_preflight.mjs` binds a clean git checkout to the compiled runtime, generated artifact, audit digest, approval digest, and reviewed operator-local release manifest
+- `deploy_ethereum_mainnet.ts` rejects unreconciled signer transactions, journals the signer nonce, predicted factory/registry/core addresses, factory initcode hash and aggregate artifact digest before broadcast, then sends one nonce-pinned immutable `NakamaProtocolFactory` transaction; the factory creates the policy registry at nonce 1 and custody core at nonce 2, then retains getters only
+- `promote_ethereum_mainnet_manifest.mjs` independently verifies the audited factory receipt, derived child addresses, immutable cross-bindings, three live runtimes, and three fixed Sourcify v2 exact matches, then binds all four exact SDK ABIs into the final manifest
+- `lib/ethereum_deploy_guard.mjs` validates operator-supplied deployment intent, source, release approval, signer, balance, network, every runtime size, and every initcode size
+- `lib/ethereum_release_preflight.mjs` binds a clean git checkout to all four compiled artifacts and ABIs, the aggregate generated artifact, audit digest, approval digest, and reviewed operator-local release manifest
 - `lib/ethereum_manifest_promotion.mjs` validates both deployment stages and emits the SDK's canonical `status: deployed`, `verified: true`, `auditStatus: audited` field set
 
 ### Devnet and operator workflows
@@ -54,16 +54,17 @@ This directory contains the repository's command-line helpers.
 - `seed_devnet_treasury_canaries.ts` seeds devnet treasury pen-test canary state; with the local operator signer it creates a linked-claim obligation canary, and with `OMEGAX_DEVNET_PROTOCOL_GOVERNANCE_KEYPAIR_PATH` it can also seed governance-gated fee-vault and LP-redemption canaries
 - `deploy_devnet_beta.ts` runs the checked build, artifact parity, and canonical manifest/bootstrap preparation for the hard-break migration
 - `governance_schema_state_update.ts` exits with migration guidance because on-chain schema-state governance has been removed
+
 ## Usage guidance
 
 - Prefer package scripts from the repository root when they exist.
-- Use `npm run ethereum:test` for the Solidity and deployment-guard suite, `npm run ethereum:contract` to regenerate the canonical ABI, and `npm run ethereum:contract:check` to reject stale artifacts.
+- Use `npm run ethereum:test` for the Solidity and deployment-guard suite, `npm run ethereum:contract` to regenerate the canonical four-ABI artifact set, and `npm run ethereum:contract:check` to reject stale artifacts.
 - Use `npm run ethereum:deploy:preflight` before any mainnet action. It requires the ignored, operator-local `deployments/ethereum-mainnet.release.json`, performs read-only network checks, and never submits a transaction. Commit the source and generated artifact first, then populate the local manifest with that existing HEAD; only `ethereum-mainnet.release.example.json` is tracked.
 - `npm run ethereum:deploy:mainnet` is intentionally unavailable until the checkout is clean and the following variables exactly match the reviewed release: `ETHEREUM_MAINNET_RPC_URL`, `ETHEREUM_MAINNET_PRIVATE_KEY`, `NAKAMA_MAINNET_EXPECTED_DEPLOYER`, `NAKAMA_MAINNET_SOURCE_COMMIT`, `NAKAMA_MAINNET_AUDIT_REPORT_SHA256`, `NAKAMA_MAINNET_RELEASE_APPROVAL_SHA256`, `NAKAMA_MAINNET_CONFIRMATIONS`, `NAKAMA_MAINNET_MIN_DEPLOYER_BALANCE_WEI`, and `NAKAMA_MAINNET_DEPLOY_CONFIRMATION`.
 - The confirmation value must be `DEPLOY_IMMUTABLE_NAKAMA_COVERAGE_PROTOCOL_TO_ETHEREUM_MAINNET`. Keep private keys in the operator's environment or secret store, never in a tracked file.
-- Mainnet deployment requires at least 12 confirmations. Its JSON is deliberately intermediate: `status: deployed-unverified`, `verified: false`, and `auditStatus: audited`; it must never be published as the final SDK manifest.
-- Promote only after Sourcify v2 reports exact creation and runtime matches. Run `ETHEREUM_MAINNET_RPC_URL=<credential-free-URL> npm run ethereum:manifest:promote -- --deployment <intermediate-json> --sdk-abi <NakamaCoverageProtocol.abi.json>`. The production Sourcify host and path are fixed; no operator-supplied verification URL is accepted.
-- Promotion rereads the transaction, creation input, receipt, canonical block, safe/finalized heads, historical and latest code, immutable-normalized template, and exact live hash from chain 1. It emits the schema in `deployments/ethereum-mainnet.final.schema.json`; the SDK repeats these checks before accepting it.
+- Mainnet deployment requires at least 12 confirmations. Its JSON is deliberately intermediate: `status: deployed-unverified`, `verified: false`, and `auditStatus: audited`; it records factory, policy-registry, and core addresses but must never be published as the final SDK manifest. `ReserveVault` is recorded only as a deterministic per-domain CREATE2 template because no single launch vault exists.
+- Promote only after Sourcify v2 reports exact creation and runtime matches for the factory, registry, and core. Run `ETHEREUM_MAINNET_RPC_URL=<credential-free-URL> npm run ethereum:manifest:promote -- --deployment <intermediate-json> --sdk-abi-dir <directory-containing-four-ABIs>`. The production Sourcify host and path are fixed; no operator-supplied verification URL is accepted.
+- Promotion rereads the factory transaction and creation input, receipt, canonical block, safe/finalized heads, historical and latest code at all three live addresses, nonce-derived child identities, immutable cross-getters, normalized templates, and exact live hashes from chain 1. It emits the schema in `deployments/ethereum-mainnet.final.schema.json`; the SDK repeats these checks before accepting it.
 - Use `npm run verify:public` for the public release gate.
 - Use `npm run frontend:workbench:mobile-sidebar:smoke` for the targeted mobile drawer accessibility smoke.
 - Use `SOLANA_KEYPAIR=<devnet governance keypair> npm run devnet:operator:drawer:sim` for the targeted plan/governance operator drawer transaction smoke; the signer must match `NEXT_PUBLIC_DEVNET_PROTOCOL_GOVERNANCE_WALLET`, and the script aborts before RPC simulation when it does not.

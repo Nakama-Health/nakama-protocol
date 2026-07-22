@@ -13,22 +13,55 @@ const config = validateDeploymentEnvironment();
 const release = await runReleasePreflight(config);
 const provider = new JsonRpcProvider(config.rpcUrl);
 const signer = new Wallet(config.privateKey, provider);
-const [network, balance] = await Promise.all([
+const [
+  network,
+  balance,
+  latestNonce,
+  pendingNonce,
+  latestBlock,
+  estimatedFactoryDeploymentGas,
+] = await Promise.all([
   provider.getNetwork(),
   provider.getBalance(signer.address),
+  provider.getTransactionCount(signer.address, "latest"),
+  provider.getTransactionCount(signer.address, "pending"),
+  provider.getBlock("latest"),
+  provider.estimateGas({
+    from: signer.address,
+    data: release.factoryCreationBytecode,
+  }),
 ]);
+
+const runtimeBytecodeBytes = Object.fromEntries(
+  Object.entries(release.contracts).map(([name, contract]) => [
+    name,
+    contract.runtimeBytecodeBytes,
+  ])
+);
+const creationBytecodeBytes = Object.fromEntries(
+  Object.entries(release.contracts).map(([name, contract]) => [
+    name,
+    contract.creationBytecodeBytes,
+  ])
+);
 
 const runtime = validateDeploymentRuntime(config, {
   chainId: network.chainId,
   deployer: signer.address,
   balanceWei: balance,
-  runtimeBytecodeBytes: release.runtimeBytecodeBytes,
+  latestNonce,
+  pendingNonce,
+  latestBlockNumber: latestBlock?.number,
+  latestBlockGasLimit: latestBlock?.gasLimit,
+  estimatedFactoryDeploymentGas,
+  runtimeBytecodeBytes,
+  creationBytecodeBytes,
 });
 
 console.log(
   JSON.stringify(
     buildEthereumPreflightReport(config, release, runtime, network.chainId),
     null,
-    2,
-  ),
+    2
+  )
 );

@@ -10,7 +10,7 @@ library ReserveAccounting {
     error LedgerInvariantViolation();
 
     function freeAssets(ProtocolTypes.BalanceSheet storage sheet) internal view returns (uint256) {
-        uint256 encumbered = sheet.owed + sheet.pendingClaims;
+        uint256 encumbered = sheet.owed + sheet.pendingClaims + sheet.openExposure;
         return sheet.funded > encumbered ? sheet.funded - encumbered : 0;
     }
 
@@ -18,28 +18,48 @@ library ReserveAccounting {
         sheet.funded += amount;
     }
 
-    function bookObligation(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
-        sheet.owed += amount;
+    /// @dev A funding line must fully back new policy exposure when it is
+    /// activated. The position-bound premium is allocated to the distinct
+    /// claims-paying line before this check.
+    function bookOpenExposure(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
+        uint256 available = freeAssets(sheet);
+        if (amount > available) revert InsufficientFreeAssets(available, amount);
+        sheet.openExposure += amount;
+        _assertInvariant(sheet);
     }
 
-    function replacePendingClaim(
+    /// @dev Plan and domain sheets mirror a line-level exposure mutation. They
+    /// report attribution and never gate liquidity belonging to another line.
+    function recordAggregateOpenExposure(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
+        sheet.openExposure += amount;
+        _assertInvariant(sheet);
+    }
+
+    function moveOpenExposureToPending(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
+        if (amount > sheet.openExposure) revert LedgerInvariantViolation();
+        sheet.openExposure -= amount;
+        sheet.pendingClaims += amount;
+        _assertInvariant(sheet);
+    }
+
+    function finalizePendingClaim(
         ProtocolTypes.BalanceSheet storage sheet,
-        uint256 previousAmount,
-        uint256 nextAmount
+        uint256 requestedAmount,
+        uint256 approvedAmount
     ) internal {
-        if (previousAmount > sheet.pendingClaims) revert LedgerInvariantViolation();
-        sheet.pendingClaims = sheet.pendingClaims - previousAmount + nextAmount;
+        if (approvedAmount > requestedAmount || requestedAmount > sheet.pendingClaims) {
+            revert LedgerInvariantViolation();
+        }
+        sheet.pendingClaims -= requestedAmount;
+        sheet.owed += approvedAmount;
+        sheet.openExposure += requestedAmount - approvedAmount;
+        _assertInvariant(sheet);
     }
 
-    function convertPendingClaimToObligation(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
-        if (amount > sheet.pendingClaims) revert LedgerInvariantViolation();
-        sheet.pendingClaims -= amount;
-        sheet.owed += amount;
-    }
-
-    function releasePendingClaim(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
-        if (amount > sheet.pendingClaims) revert LedgerInvariantViolation();
-        sheet.pendingClaims -= amount;
+    function releaseOpenExposure(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
+        if (amount > sheet.openExposure) revert LedgerInvariantViolation();
+        sheet.openExposure -= amount;
+        _assertInvariant(sheet);
     }
 
     function bookReservation(ProtocolTypes.BalanceSheet storage sheet, uint256 amount) internal {
@@ -106,7 +126,8 @@ library ReserveAccounting {
     }
 
     function isSound(ProtocolTypes.BalanceSheet storage sheet) internal view returns (bool) {
-        return sheet.reserved <= sheet.owed && sheet.reserved <= sheet.funded;
+        return sheet.reserved <= sheet.owed
+            && sheet.owed + sheet.pendingClaims + sheet.openExposure <= sheet.funded;
     }
 
     function _assertInvariant(ProtocolTypes.BalanceSheet storage sheet) private view {

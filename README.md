@@ -4,7 +4,7 @@ Nakama Protocol's current launch job is concrete: help a sponsor fund Travel 30 
 
 Plainly: a sponsor can fund a protected group, see what backs the promise, and audit what happened when a claim is reviewed or paid.
 
-This branch adds an immutable Ethereum mainnet implementation candidate with domain-isolated ERC-20 vaults, contributor-controlled exits, commitment-based claims, strict-majority attestation, one challenge round, and permissionless finalization and settlement. It is pre-mainnet and unaudited: no Ethereum address or deployment transaction is configured, and the existing Solana devnet program remains the currently deployed beta until an audited migration is explicitly completed.
+This branch adds an immutable Ethereum mainnet implementation candidate with a one-purpose deployment factory, a custody and accounting core, a separately bound policy registry, domain-isolated ERC-20 vaults, contributor-controlled exits, commitment-based claims, strict-majority attestation, one challenge round, and permissionless finalization and settlement. It is pre-mainnet and unaudited: no Ethereum address or deployment transaction is configured, and the existing Solana devnet program remains the currently deployed beta until an audited migration is explicitly completed.
 
 The current public launch reference is Genesis Protect Acute. `Travel 30` is the primary Founder SKU: a 100-seat cohort where 99 USDC reserves access to a reserve-indexed 30-day travel cap targeting up to 250,000 USDC at activation, unlocked only when the posted claims-paying reserve/backstop reaches the required threshold and final terms are ready. `Event 7` is the short-window cohort/demo SKU, with a 7-day window and a 3,000 USDC fixed-benefit cap. Both remain bounded launch surfaces: reservations are not active cover today, pending custody is not claims-paying reserve, this is not comprehensive travel insurance, and Phase 0 claim review is operator-backed rather than fully decentralized.
 
@@ -16,9 +16,9 @@ On Solana devnet beta today, the public surface in this repository can already a
 
 ## Ethereum Implementation Candidate
 
-The Solidity 0.8.28 surface is immutable by design: it has no proxy, global owner, global pause, or arbitrary controller-created payout. Scope-local controllers can stop new activity, but existing claims, contributor exits from unencumbered equity, finalization, reservation, and settlement remain available.
+The Solidity 0.8.28 surface is immutable by design: it has no proxy, global owner, global pause, or arbitrary controller-created payout. A constructor-only `NakamaProtocolFactory` atomically creates `NakamaPolicyRegistry` at factory CREATE nonce 1 and `NakamaCoverageProtocol` at nonce 2, then retains getters only. Scope-local controllers can stop new activity, but existing claims, contributor exits from unencumbered equity, finalization, reservation, and settlement remain available.
 
-The canonical machine-readable interface is [`shared/ethereum/protocol_contract.json`](./shared/ethereum/protocol_contract.json). The checked-in deployment example stays `unconfigured`; clients must not infer a mainnet address from the presence of compiled contracts.
+The schema-v3 machine-readable interface is [`shared/ethereum/protocol_contract.json`](./shared/ethereum/protocol_contract.json), with standalone ABIs for the factory, core, registry, and reserve-vault template. `ReserveVault` has no single launch address: the core creates one deterministic CREATE2 vault per domain and ERC-20 pair. The checked-in deployment example stays `unconfigured`; clients must not infer a mainnet address from the presence of compiled contracts.
 
 Start with:
 
@@ -160,13 +160,13 @@ Read the canonical design set first:
 
 ## Repository Layout
 
-- [`contracts/`](./contracts/) contains the immutable Ethereum protocol, isolated reserve vault, accounting library, and test tokens
+- [`contracts/`](./contracts/) contains the immutable Ethereum factory, custody core, policy registry, isolated reserve-vault template, accounting library, and test tokens
 - [`programs/nakama_coverage_protocol/`](./programs/nakama_coverage_protocol/) contains the onchain Anchor program
 - [`frontend/`](./frontend/) contains the public protocol console and deterministic read models
 - [`tests/`](./tests/) contains the fast Node-based scenario suite
 - [`e2e/`](./e2e/) contains the heavier localnet audit entrypoint
 - [`scripts/`](./scripts/) contains artifact generation and devnet migration helpers
-- [`idl/`](./idl/), [`shared/`](./shared/), and [`frontend/lib/generated/`](./frontend/lib/generated/) contain checked-in generated contract artifacts, including the canonical Ethereum ABI, creation hash, normalized runtime-template hash, and immutable byte ranges
+- [`idl/`](./idl/), [`shared/`](./shared/), and [`frontend/lib/generated/`](./frontend/lib/generated/) contain checked-in generated contract artifacts, including four canonical Ethereum ABIs, creation hashes and sizes, normalized runtime-template hashes, and immutable byte ranges
 
 ## Quick Start
 
@@ -193,7 +193,7 @@ npm run ethereum:contract
 
 `npm run ethereum:deploy:preflight` is the read-only release check. It deliberately fails until an independent audit and explicit release approval are bound to an operator-local manifest; do not run the transaction-producing mainnet command as a development smoke test.
 
-Deployment output remains explicitly unverified until `ethereum:manifest:promote` independently validates the canonical finalized chain receipt, live runtime, fixed Sourcify v2 exact match, and exact SDK ABI; the final public shape is machine-defined in [`deployments/ethereum-mainnet.final.schema.json`](./deployments/ethereum-mainnet.final.schema.json).
+The deployment command sends one factory transaction. Its output remains explicitly unverified until `ethereum:manifest:promote` independently validates the canonical finalized factory receipt, nonce-1 registry and nonce-2 core addresses, all three live runtime and cross-binding checks, fixed Sourcify v2 exact matches for each live contract, and all four SDK ABIs. The final public shape is machine-defined in [`deployments/ethereum-mainnet.final.schema.json`](./deployments/ethereum-mainnet.final.schema.json); the reserve vault remains an artifact-bound CREATE2 template until a real domain and asset instantiate it.
 
 Regenerate the canonical onchain artifacts:
 

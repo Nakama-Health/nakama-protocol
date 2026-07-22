@@ -28,6 +28,13 @@ library ProtocolTypes {
         Canceled
     }
 
+    enum PolicyPositionStatus {
+        None,
+        Active,
+        Exhausted,
+        Expired
+    }
+
     /// @dev `reserved` is a subset of `owed`; it is never added to `owed` when
     /// calculating free assets. This avoids double counting while ensuring all
     /// proposed obligations encumber contributor equity immediately.
@@ -35,6 +42,7 @@ library ProtocolTypes {
         uint256 funded;
         uint256 owed;
         uint256 pendingClaims;
+        uint256 openExposure;
         uint256 reserved;
         uint256 settled;
         uint256 returned;
@@ -65,10 +73,33 @@ library ProtocolTypes {
 
     struct PolicySeries {
         bytes32 planId;
+        bytes32 coverageLineId;
+        bytes32 premiumLineId;
         address assetToken;
+        bytes32 eligibilityRoot;
+        uint64 coverageDuration;
+        uint64 initialDecisionWindow;
         uint64 challengeWindow;
-        bool active;
+        uint16 attesterThreshold;
+        uint256 coverageLimit;
+        uint256 premiumAmount;
+        uint256 exposureCap;
         bytes32 termsCommitment;
+        /// @notice Remaining unclaimed coverage across live positions. Owed
+        /// approved claims are tracked separately in reserve balance sheets.
+        uint256 outstandingExposure;
+    }
+
+    struct PolicyPosition {
+        bytes32 seriesId;
+        bytes32 coverageLineId;
+        bytes32 premiumLineId;
+        address holder;
+        uint64 openedAt;
+        uint64 expiresAt;
+        uint256 remainingCoverage;
+        bytes32 activeClaimId;
+        PolicyPositionStatus status;
     }
 
     struct FundingLine {
@@ -87,6 +118,7 @@ library ProtocolTypes {
     struct ClaimCase {
         bytes32 planId;
         bytes32 seriesId;
+        bytes32 positionId;
         bytes32 lineId;
         bytes32 claimCommitment;
         bytes32 nullifier;
@@ -94,7 +126,6 @@ library ProtocolTypes {
         address payoutRecipient;
         uint256 requestedAmount;
         uint256 approvedAmount;
-        uint256 pendingLiability;
         uint256 recipientNonce;
         uint64 decisionDeadline;
         uint8 round;

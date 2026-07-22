@@ -13,38 +13,51 @@ import {
 
 const root = process.cwd();
 const outputPath = resolve(root, "shared/ethereum/protocol_contract.json");
-const protocolAbiOutputPath = resolve(root, "shared/ethereum/NakamaCoverageProtocol.abi.json");
 const artifactPaths = {
+  NakamaProtocolFactory: resolve(
+    root,
+    "artifacts/hardhat/contracts/NakamaProtocolFactory.sol/NakamaProtocolFactory.json"
+  ),
   NakamaCoverageProtocol: resolve(
     root,
-    "artifacts/hardhat/contracts/NakamaCoverageProtocol.sol/NakamaCoverageProtocol.json",
+    "artifacts/hardhat/contracts/NakamaCoverageProtocol.sol/NakamaCoverageProtocol.json"
   ),
-  ReserveVault: resolve(root, "artifacts/hardhat/contracts/ReserveVault.sol/ReserveVault.json"),
+  NakamaPolicyRegistry: resolve(
+    root,
+    "artifacts/hardhat/contracts/NakamaPolicyRegistry.sol/NakamaPolicyRegistry.json"
+  ),
+  ReserveVault: resolve(
+    root,
+    "artifacts/hardhat/contracts/ReserveVault.sol/ReserveVault.json"
+  ),
 };
 
 const contracts = {};
-let protocolAbiGenerated = "";
+const standaloneAbis = {};
 for (const [name, path] of Object.entries(artifactPaths)) {
   const artifact = JSON.parse(await readFile(path, "utf8"));
   const standaloneAbi = `${JSON.stringify(artifact.abi, null, 2)}\n`;
-  const immutableReferences = canonicalImmutableReferences(artifact.immutableReferences);
+  const immutableReferences = canonicalImmutableReferences(
+    artifact.immutableReferences
+  );
   contracts[name] = {
     abi: artifact.abi,
     abiSha256: createHash("sha256").update(standaloneAbi).digest("hex"),
     creationBytecodeHash: keccak256(artifact.bytecode),
+    creationBytecodeBytes: runtimeBytecodeBytes(artifact.bytecode),
     runtimeBytecodeTemplateHash: runtimeBytecodeTemplateHash(
       artifact.deployedBytecode,
-      immutableReferences,
+      immutableReferences
     ),
     runtimeBytecodeBytes: runtimeBytecodeBytes(artifact.deployedBytecode),
     immutableReferences,
   };
-  if (name === "NakamaCoverageProtocol") protocolAbiGenerated = standaloneAbi;
+  standaloneAbis[name] = standaloneAbi;
 }
 
 const generated = `${JSON.stringify(
   {
-    schemaVersion: 2,
+    schemaVersion: 3,
     chainFamily: "eip155",
     canonicalChain: "eip155:1",
     compiler: {
@@ -53,27 +66,61 @@ const generated = `${JSON.stringify(
       optimizerRuns: 200,
       viaIR: true,
     },
+    deploymentPlan: {
+      transactionCount: 1,
+      entryContract: "NakamaProtocolFactory",
+      factoryCreates: [
+        { contractName: "NakamaPolicyRegistry", nonce: 1 },
+        { contractName: "NakamaCoverageProtocol", nonce: 2 },
+      ],
+      templates: [
+        {
+          contractName: "ReserveVault",
+          deploymentKind: "core-create2",
+          saltDerivation: "keccak256(abi.encode(domainId,assetToken))",
+        },
+      ],
+    },
     contracts,
   },
   null,
-  2,
+  2
 )}\n`;
 
 if (process.argv.includes("--check")) {
-  const [current, currentProtocolAbi] = await Promise.all([
+  const [current, ...currentAbis] = await Promise.all([
     readFile(outputPath, "utf8").catch(() => ""),
-    readFile(protocolAbiOutputPath, "utf8").catch(() => ""),
+    ...Object.keys(standaloneAbis).map((name) =>
+      readFile(resolve(root, `shared/ethereum/${name}.abi.json`), "utf8").catch(
+        () => ""
+      )
+    ),
   ]);
-  if (current !== generated || currentProtocolAbi !== protocolAbiGenerated) {
-    console.error("Ethereum protocol contract artifact is stale. Run npm run ethereum:contract.");
+  const abisCurrent = Object.values(standaloneAbis).every(
+    (standaloneAbi, index) => currentAbis[index] === standaloneAbi
+  );
+  if (current !== generated || !abisCurrent) {
+    console.error(
+      "Ethereum protocol contract artifact is stale. Run npm run ethereum:contract."
+    );
     process.exitCode = 1;
   } else {
-    console.log("Ethereum protocol contract and standalone ABI artifacts are current.");
+    console.log(
+      "Ethereum protocol contract and standalone ABI artifacts are current."
+    );
   }
 } else {
   await Promise.all([
     writeFile(outputPath, generated, "utf8"),
-    writeFile(protocolAbiOutputPath, protocolAbiGenerated, "utf8"),
+    ...Object.entries(standaloneAbis).map(([name, standaloneAbi]) =>
+      writeFile(
+        resolve(root, `shared/ethereum/${name}.abi.json`),
+        standaloneAbi,
+        "utf8"
+      )
+    ),
   ]);
-  console.log("Wrote shared/ethereum/protocol_contract.json and standalone protocol ABI");
+  console.log(
+    "Wrote shared/ethereum/protocol_contract.json and four standalone contract ABIs"
+  );
 }
