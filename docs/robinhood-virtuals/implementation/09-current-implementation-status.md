@@ -48,30 +48,33 @@ The following words are intentionally non-interchangeable:
 - **Proven:** a sponsor renews, expands, or refers after measured use and safe
   closeout.
 
-The current release is **implemented and locally verified**. The protocol, SDK,
-and website repositories are clean committed candidates. The health-platform
-implementation is locally verified but intentionally uncommitted because its
-worktree also contains unrelated concurrent native-auth changes that must not
-be mixed into this release.
+The current release is **implemented and locally verified at its named
+Robinhood gates**. The protocol, SDK, and website repositories are clean
+committed candidates. The protocol's aggregate `verify:public` command still
+fails its dependency-advisory step on seven high and one moderate pre-existing
+frontend advisories outside the Robinhood package, so this is not an aggregate
+clean release. The health-platform implementation is locally verified but
+intentionally uncommitted because its worktree also contains unrelated
+concurrent native-auth changes that must not be mixed into this release.
 
 ## Cross-Repository Implementation Register
 
-| Workstream                          | Current source state                                 | What exists now                                                                                                                                                                                                                                                                                                                                       | What is still external                                                                                                                                                                                    |
-| ----------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P-001–P-011 protocol                | Implemented and committed                            | Major-v2 isolated Robinhood EVM suite; exhaustive factory role checks; exact USDG custody; membership eligibility and signed revocation; human decision and appeal authority; canonical economic event replay; bounded stateful invariant fuzzing; durable blocked-attempt adapter telemetry; explicit incident exercises; generated ABI and manifest | Independent audit and long-running fuzzing/formal review; live USDG/config readback; deployed addresses; source and bytecode verification; threshold-account role recovery; live signer/network rehearsal |
-| P-012 release path                  | Tooling implemented; deployment intentionally absent | Testnet deploy tooling, mainnet planning, example manifests/configuration, provenance generation, artifact hygiene, fail-closed release evidence                                                                                                                                                                                                      | Authorized deployer, dual live RPCs, verified explorer/source publication, finalized receipts, operational monitoring, approved testnet/mainnet promotion                                                 |
-| S-001–S-006 SDK                     | Implemented code boundary                            | Generated protocol bundle, typed reads/events/errors/receipts, eligibility packages, EIP-712/EIP-1271 decisions, safe action builders, exact simulation plans, smart-account/paymaster boundary, offline/reorg-aware query boundary                                                                                                                   | A verified non-placeholder deployment manifest, production provider/account selection, live bytecode verification, wallet/passkey and provider conformance                                                |
-| H-001–H-008 private control plane   | Implemented as adapter-driven local modules          | Versioned sponsor workspace, pseudonymous eligibility, consent/audit ledger, encrypted evidence lifecycle, request/review/SLA workflow, opaque notifications, chain projection/reconciliation, private/public reporting boundaries                                                                                                                    | Production identity, database, KMS, object store, malware scanner, authorization, notification, indexer, finality, reconciliation, alert, and on-call adapters                                            |
-| H-009–H-010 Nakama Operator         | Implemented as bounded runtime                       | Ten strict tools, fixed role/program/value/timeout policies, exact input commitments, schema-checked handler results, one-time approvals for the only two side effects, safe audit envelopes, and a non-authorizing evaluation gate                                                                                                                   | Production route, model/prompt release, durable approval/review-task stores, approved templates, evaluation corpus review, monitoring, incident ownership                                                 |
-| H-011 Virtuals ACP                  | Implemented as disabled adapter boundary             | Public/synthetic payload allowlist, exact USDG budget and quote binding, separate operations account/treasury policy, idempotency, expiry, one-time human approval, strict result validation                                                                                                                                                          | Written Virtuals eligibility, exact Robinhood ACP support, production ACP client/account/funding, webhook/reconciliation, first approved tokenless job                                                    |
-| H-012 reports                       | Implemented locally                                  | Authorized private and privacy-suppressed public report schemas, deterministic commitments, completed-by-generation-time period rule, chain/accounting inputs                                                                                                                                                                                         | Finalized-block timestamp binding, production data sources, authorization service, scheduled generation, public publishing approval, operating data                                                       |
-| A-001–A-004 sponsor product         | Read-only synthetic rehearsal implemented            | Sponsor/authority, program design, exact funding stages, operating accounting, closure, refund, and incident states on the existing Operator route                                                                                                                                                                                                    | Authenticated production APIs, signer/wallet path, real sponsor inputs, live indexer, transaction builders, operating owners                                                                              |
-| A-005–A-008 member product          | Additive read model and UI implemented               | Sponsor-funded `$0` explanation, no-token boundary, terms, activation/recovery states, private evidence guidance, human review and appeal, finality/payment separation, history and data-rights path                                                                                                                                                  | Real eligibility/account activation, production evidence and request workflow, localization, accessibility study, low-bandwidth exercise, approved member terms                                           |
-| A-009–A-011 reviewer/safety product | Read-only synthetic rehearsal implemented            | Accountable appeal queue, conflict/qualification/SLA states, typed-decision preparation, settlement gates, incident scope and recovery gates                                                                                                                                                                                                          | Reviewer identity and assignment, purpose grants, real signatures/simulation, notification delivery, deployed guardian, tabletop approval                                                                 |
-| W-001 buyer website                 | Implemented, committed, and rendered locally         | Category, sponsor-funded offer, design-partner conversion path, evidence-gated intake, legal and SEO copy                                                                                                                                                                                                                                             | Production deployment and configured CRM/KV receipt destination                                                                                                                                           |
-| W-002 transparency website          | Implemented fail-closed                              | Generated public status, zero-program registry, freshness/finality/reconciliation separation, explicit pre-deployment and failure states                                                                                                                                                                                                              | Verified deployment manifest, indexer/public report feed, live program evidence                                                                                                                           |
-| W-003 agent/token website           | Agent page implemented; token publication gated      | Productive-agent explanation, exact authority boundary, tokenless ACP-first sequence, risk and token gates, pre-hydration redirect from unpublished token routes                                                                                                                                                                                      | ACP acceptance and jobs, independent token go/no-go, verified token transaction/address, treasury reporting, publication approval                                                                         |
-| Marketing and GTM                   | C0/C1 materials implemented                          | Launch/media kit, buyer one-pager, editable sponsor deck, LinkedIn/X library, threads, Celeste/Virtuals outreach drafts, claim-stage publishing rules                                                                                                                                                                                                 | Founder personalization, recipient selection, explicit send/publish authorization, sponsor evidence for C2, operating evidence for C3, token evidence for C4                                              |
+| Workstream                          | Current source state                                 | What exists now                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | What is still external                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P-001–P-011 protocol                | Implemented and committed                            | Major-v2 isolated Robinhood EVM suite; exhaustive factory role checks; exact USDG custody; membership eligibility and signed revocation; human decision and appeal authority; canonical economic event replay; bounded stateful invariant fuzzing; durable blocked-attempt adapter telemetry; explicit incident exercises; generated ABI and manifest                                                                                                                                                                        | Independent audit and long-running fuzzing/formal review; live USDG/config readback; deployed addresses; source and bytecode verification; threshold-account role recovery; live signer/network rehearsal                                                                                                                                              |
+| P-012 release path                  | Tooling implemented; deployment intentionally absent | Testnet deploy tooling, mainnet planning, example manifests/configuration, provenance generation, artifact hygiene, fail-closed release evidence                                                                                                                                                                                                                                                                                                                                                                             | Authorized deployer, dual live RPCs, verified explorer/source publication, finalized receipts, operational monitoring, approved testnet/mainnet promotion                                                                                                                                                                                              |
+| S-001–S-006 SDK                     | Implemented and committed                            | Exact schema-2/protocol-major-2 bundle; typed nine-kind economic-event decoder; authorization-failure and blocked-attempt adapter support; typed role, duplicate-role, and incompatible-suite errors; eligibility packages; EIP-712/EIP-1271 decisions; safe action builders; exact simulation plans; provider-neutral smart-account/paymaster lifecycle; offline/reorg-aware query boundary                                                                                                                                 | OmegaX Docs publication receipt; a verified non-placeholder deployment manifest; production provider/account selection; live bytecode verification; wallet/passkey, bundler, paymaster, and provider conformance                                                                                                                                       |
+| H-001–H-008 private control plane   | Implemented as adapter-driven local modules          | Versioned sponsor workspace, pseudonymous eligibility, consent/audit ledger, encrypted evidence lifecycle, request/review/SLA workflow, opaque notifications, chain projection/reconciliation, private/public reporting boundaries                                                                                                                                                                                                                                                                                           | Production identity, database, KMS, object store, malware scanner, authorization, notification, indexer, finality, reconciliation, alert, and on-call adapters                                                                                                                                                                                         |
+| H-009–H-010 Nakama Operator         | Implemented as bounded runtime                       | Ten strict tools, fixed role/program/value/timeout policies, exact input commitments, schema-checked handler results, one-time approvals for the only two side effects, safe audit envelopes, and a non-authorizing evaluation gate                                                                                                                                                                                                                                                                                          | Production route, model/prompt release, durable approval/review-task stores, approved templates, evaluation corpus review, monitoring, incident ownership                                                                                                                                                                                              |
+| H-011 Virtuals ACP                  | Implemented as disabled adapter boundary             | Public/synthetic payload allowlist; exact itemized USDG quote binding; separate operations account/treasury policy; exact `@virtuals-protocol/acp-node-v2` 0.1.9 npm provenance; narrow correction of the package's `USDC` label to USDG only for the exact Robinhood chain/address/decimals/package-registry/upstream-symbol tuple; independently supplied runtime verification with bounded freshness; reconnectable monotonic lifecycle store; idempotency, expiry, one-time human approval, and strict result validation | Resolve or explicitly accept the reviewed package's two high, one moderate, and one low production advisories and placeholder upstream test; controlled installation and integrity; written eligibility; live account/registry/allowance/runtime verification; production funding, webhook/reconciliation, and one low-value approved tokenless canary |
+| H-012 reports                       | Implemented locally                                  | Authorized private and privacy-suppressed public report schemas, deterministic commitments, completed-by-generation-time period rule, chain/accounting inputs                                                                                                                                                                                                                                                                                                                                                                | Finalized-block timestamp binding, production data sources, authorization service, scheduled generation, public publishing approval, operating data                                                                                                                                                                                                    |
+| A-001–A-004 sponsor product         | Fail-closed service port plus synthetic rehearsal    | A dedicated authenticated superadmin route, same-origin server proxy, strict eleven-action control-plane contract, capability-driven setup, revision/approval/commitment-bound requests, exact receipt validation, plus disabled synthetic sponsor/program/funding/accounting/closure states                                                                                                                                                                                                                                 | A durable production implementation of the service port, signer/wallet path, real sponsor inputs, live indexer/reconciliation, audited transaction builders, and operating owners                                                                                                                                                                      |
+| A-005–A-008 member product          | Additive read model and UI implemented               | Sponsor-funded `$0` explanation, no-token boundary, terms, activation/recovery states, private evidence guidance, human review and appeal, finality/payment separation, history and data-rights path                                                                                                                                                                                                                                                                                                                         | Real eligibility/account activation, production evidence and request workflow, localization, accessibility study, low-bandwidth exercise, approved member terms                                                                                                                                                                                        |
+| A-009–A-011 reviewer/safety product | Fail-closed service port plus synthetic rehearsal    | The same authenticated eleven-action boundary covers reviewer assignment, human-decision preparation, and incident pause; strict output validation rejects substituted actions, revisions, IDs, commitments, and incoherent capabilities; disabled fixtures show conflict/qualification/SLA, settlement, incident, and recovery states                                                                                                                                                                                       | Durable reviewer identity/assignment and purpose grants, real signatures/simulation, notification delivery, deployed guardian, recovery exercises, and tabletop approval                                                                                                                                                                               |
+| W-001 buyer website                 | Implemented, committed, and rendered locally         | Category, sponsor-funded offer, design-partner conversion path, evidence-gated intake, legal and SEO copy                                                                                                                                                                                                                                                                                                                                                                                                                    | Production deployment and configured CRM/KV receipt destination                                                                                                                                                                                                                                                                                        |
+| W-002 transparency website          | Implemented, committed, and fail-closed              | Zero-or-more public program sources; derived funded/current state; explicit freshness, finality, and reconciliation evidence; canonical Blockscout links; JSON/schema output; exhaustive empty, predeployment, current, stale, divergent, and failure rendering                                                                                                                                                                                                                                                              | Verified deployment manifest, indexer/public-report feed, live reconciled program evidence, and production publication                                                                                                                                                                                                                                 |
+| W-003 agent/token website           | Complete packet implemented; publication gated       | Productive-agent explanation, exact authority boundary, tokenless ACP-first sequence, complete token-launch packet, section-level SHA-256 commitments, publication/expiry gates, SEO/navigation suppression, and pre-hydration redirect while unpublished                                                                                                                                                                                                                                                                    | ACP acceptance and paid jobs, independent token go/no-go, current verified packet, verified token transaction/address, treasury reporting, and publication approval                                                                                                                                                                                    |
+| Marketing and GTM                   | C0/C1 materials implemented                          | Launch/media kit, buyer one-pager, editable sponsor deck, LinkedIn/X library, threads, Celeste/Virtuals outreach drafts, claim-stage publishing rules                                                                                                                                                                                                                                                                                                                                                                        | Founder personalization, recipient selection, explicit send/publish authorization, sponsor evidence for C2, operating evidence for C3, token evidence for C4                                                                                                                                                                                           |
 
 ## Protocol Candidate
 
@@ -123,21 +126,26 @@ deployment claim and no downstream client may infer a live address from them.
 
 ## SDK Candidate
 
-The SDK treats an unconfigured manifest as a capability boundary rather than a
-blank to be filled by a caller. Read, signature, action, simulation,
-smart-account, paymaster, and query flows are typed around the canonical
-generated protocol contract.
+The SDK carries and verifies the canonical schema-2, suite-major-2 protocol
+bundle and all twelve ABIs byte-for-byte. It treats an unconfigured manifest or
+a runtime suite-major mismatch as a capability boundary rather than a blank to
+be filled by a caller. Read, signature, action, simulation, smart-account,
+paymaster, and query flows are typed around that generated protocol contract.
 
 The key safety properties are:
 
 - integer USDG base-unit arithmetic with chain and asset binding;
-- exhaustive event, error, and receipt-state decoding;
+- a typed, accounting-validated decoder for all nine `EconomicActivity` kinds,
+  plus exhaustive error and receipt-state decoding;
 - one immutable typed-data object for preview, signature, verification,
   replay, expiry, and substitution checks;
 - action builders without a generic transaction-send escape hatch;
 - exact pinned/fresh simulation expectations before any write can be promoted;
-- smart-account and paymaster interfaces that remain submission-disabled until
-  the manifest, runtime, policy, account, and quote are verified;
+- provider-neutral smart-account and paymaster lifecycle interfaces that remain
+  submission-disabled until the manifest, runtime, policy, account, and quote
+  are verified, and that reject an incompatible live suite major;
+- adapter-only blocked-attempt recording and typed authorization-failure
+  inspection, without weakening the protocol's reverting authorization path;
 - direct/indexed read reconciliation, bounded pagination/retries, snapshot and
   cursor validation, offline TTL, and conservative reorg invalidation;
 - signed eligibility issuance and revocation helpers aligned with the current
@@ -145,10 +153,10 @@ The key safety properties are:
 
 These interfaces make unsafe wiring harder. They do not select a wallet,
 provider, bundler, paymaster, indexer, or live deployment on the user's behalf.
-The production-dependency and packed-consumer audits pass, while the raw
-development dependency tree still reports four install-time findings: one low,
-one moderate, and two high. Those development findings remain explicit
-dependency-maintenance work rather than being hidden by the release audit.
+The production-dependency and packed-consumer audits pass. The standard release
+verifier passes; the exact publication verifier remains deliberately blocked
+only on the honest `PENDING` OmegaX Docs commit, timestamp, and publisher
+fields.
 
 ## Private Control Plane and Operator
 
@@ -185,11 +193,14 @@ the provenance of a caller-supplied human-review case; production reviewer
 authorization and verified-decision receipt consumption remain external gates.
 Notifications do not make a state transition authoritative.
 
-The local workspace, eligibility, and workflow modules do not yet have a shared
-mutation/audit transaction. Some paths can append a past-tense audit event
-before a losing state-store compare-and-swap. Production composition is blocked
-until it supplies one transactional mutation/audit-intent port or explicit
-intent, committed/aborted semantics, and reconciliation.
+Workspace, eligibility, workflow/notification, and projection mutations append
+a durable audit intent before their exact state write, emit the domain success
+action only after the CAS or atomic workflow/outbox write commits, and emit an
+abort after a definite conflict. The handle supports idempotent reconciliation
+after a crash, and forced losing-CAS tests prove that no target success event is
+left behind. Production composition still needs a durable pending-intent worker
+and a trusted domain-outcome resolver; caller assertion alone is not sufficient
+reconciliation evidence.
 
 Program reports bind the exact program/grant/period inputs and reject an
 unfinished or future reporting period. Public reports apply small-count
@@ -223,18 +234,56 @@ transport outcomes.
 The evaluation gate can only say that a named configuration is eligible for a
 named human release decision. It cannot modify authority.
 
+### Virtuals ACP dependency boundary
+
+The reviewed integration target is the official
+`@virtuals-protocol/acp-node-v2` 0.1.9 npm artifact. Its package declarations
+include Robinhood mainnet 4663 and testnet 46630, the mainnet ACP contract
+`0x238E541BfefD82238730D00a2208E5497F1832E0`, and the canonical mainnet asset
+address `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`. Those declarations confirm
+package-level support; they are not evidence that a Nakama account is
+registered, funded, approved, connected, or able to complete a job.
+
+The package places that canonical six-decimal USDG address in a registry named
+`USDC_ADDRESSES` and applies the symbol `USDC`. The Nakama wrapper treats this
+as a narrow upstream label defect: it normalizes to `USDG (Global Dollar)` only
+when chain, address, decimals, registry name, upstream symbol, reviewed package
+version, git head, and registry integrity all match. Every alternate tuple is
+rejected. Product and public API surfaces continue to reject USDC.
+
+The dependency is intentionally not installed in the health platform yet. A
+temporary exact-package audit found two high, one moderate, and one low
+production advisory in transitive dependencies, and the upstream package test
+script is a placeholder. Those findings must be resolved or explicitly accepted
+before controlled installation. A trusted verifier must independently attest
+the exact package and runtime snapshot before the adapter can become ready, and
+that verification expires rather than remaining valid indefinitely. Production
+activation additionally requires live ACP bytecode/API verification, account
+and registry enrollment, allowance and operating-treasury checks,
+reconnect/readback reconciliation, and a low-value public-data-only canary.
+Program custody and member evidence remain outside this boundary.
+
 ## Product Surfaces
 
-The sponsor and member implementations are controlled rehearsals over a shared
-fail-closed contract, not mock controls that imply a live financial product.
+The sponsor and member implementations combine a controlled rehearsal with a
+strict, unconfigured production service seam. Neither implies a live financial
+product.
 
 - The sponsor workspace shows who would be accountable, the exact maximum
   liability and budget, staged funding/finality/reconciliation, reviewer and
   appeal controls, privacy-safe operating reports, closure/refund gates, and
   incident ownership.
-- All new Phase 0 controls remain disabled and handler-free. The existing
-  operator controls below the rehearsal are separated visibly and explicitly
-  state that they cannot deploy, fund, approve, or settle Phase 0.
+- Every synthetic Phase 0 fixture control remains disabled and handler-free. A
+  separate authenticated superadmin control-plane panel can call only eleven
+  named operations through a same-origin server proxy. Its injected oracle
+  route is mounted under authenticated `/v1/internal`, while the injected
+  service implementation is `null` and all capabilities are disabled by
+  default; GET returns the disabled workspace and POST fails unavailable.
+  Requests are revision-, commitment-, approval-, and time-bound, and accept no
+  raw evidence, key, RPC URL, signer, arbitrary calldata, or wallet operation.
+- The dedicated `/ops/protocol/robinhood-phase0` route is isolated from the
+  legacy Operator wallet/write surface, so the old controls cannot silently
+  become Phase 0 execution authority.
 - The member panel says `$0 — sponsor funded`, states that `$NAKAMA` is not
   required, separates an agent draft from a human decision, explains evidence
   privacy and appeal independence, and distinguishes finalized network record
@@ -287,22 +336,24 @@ publish.
 The final release report must preserve the exact command outputs from the
 current settled trees. At this snapshot, the verified evidence includes:
 
-| Surface                           | Verified local result                                                                                                                                                                                                                                                                                                  |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Protocol Robinhood suite          | 37 focused tests passed                                                                                                                                                                                                                                                                                                |
-| Protocol full EVM suite           | 92 tests passed                                                                                                                                                                                                                                                                                                        |
-| Protocol Node/tooling suite       | 272 tests passed                                                                                                                                                                                                                                                                                                       |
-| Protocol clean Git archive        | 40 Solidity sources compiled; the exact `Phase0Protocol.ts` + `SourceProvenance.ts` selector passed 34/34; full Robinhood selector separately passed 37/37; artifact hygiene and provenance checks passed                                                                                                              |
-| SDK                               | 163/163 tests passed; 225-file generated API-doc parity, 12-contract/224-function/47-event runtime inventory, artifact parity, production audit, packed-consumer audit, examples, dogfood, and CLI gates passed                                                                                                        |
-| Protocol-oracle control plane     | 532/532 full tests passed; 22/22 focused durable-plane tests passed; TypeScript build and canonical JSON parsing passed                                                                                                                                                                                                |
-| Shared health contract/display    | 10 tests passed                                                                                                                                                                                                                                                                                                        |
-| Health agent                      | 266/266 full service tests passed; 20/20 focused Operator tests passed; TypeScript build passed                                                                                                                                                                                                                        |
-| Business sponsor/reviewer surface | 47/47 tests passed; type-check, lint, and production build passed                                                                                                                                                                                                                                                      |
-| Member surface                    | 12/12 focused and 1,172/1,172 full tests passed across 165 files; type-check, lint, and production build passed                                                                                                                                                                                                        |
-| Health product source audit       | Semantic markup and responsive classes compile and lint; rendered mobile, zoom, keyboard, contrast, screen-reader, and WCAG evidence remains unverified because the in-app browser backend was unavailable                                                                                                             |
-| Website                           | 63/63 tests passed; status, deck-claim, marketing-source, build, distribution, and generated-status gates passed                                                                                                                                                                                                       |
-| Website browser QA                | Manual desktop checks were reported for `/`, `/agent`, `/protocol`, `/design-partner`, and `/risk`, with mobile checks for `/agent`, `/protocol`, `/design-partner`, and `/risk`; navigation, labels, overflow, and the gated-route redirect were checked, but the browser evidence was not archived in the repository |
-| Marketing artifacts               | Deck and one-pager checksums match the visually reviewed files; 15 LinkedIn posts, 20 X posts, three threads, and five core assets pass the automated claim gate                                                                                                                                                       |
+| Surface                           | Verified local result                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Protocol Robinhood suite          | 42 focused tests passed                                                                                                                                                                                                                                                                                                                                                                                          |
+| Protocol full EVM suite           | 97 tests passed                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Protocol Node/tooling suite       | 272 tests passed                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Protocol clean Git archive        | 40 Solidity sources compiled from a tracked-only archive; the Phase 0 plus mainnet-planning selector passed 38/38; artifact hygiene, semantic, provenance, license, and SBOM checks passed                                                                                                                                                                                                                       |
+| Protocol aggregate release gate   | `verify:public` remains red only at the dependency-advisory step: seven high and one moderate pre-existing frontend advisories in `@react-native/virtualized-lists`, `axios`, `next`, `react-devtools-core`, `react-native`, `sharp`, `shell-quote`, and `@solana/spl-governance`; the Robinhood-specific gates before it pass                                                                                   |
+| SDK                               | 167/167 tests passed; typecheck, lint, format, build, 252-file generated API-doc parity, 86 documentation references across 10 subpaths, 12-contract/232-function/40-event runtime inventory, artifact parity, production audit, packed-consumer audit, examples, templates, CLI/DX smoke, and package dry-run passed; strict publication check is blocked only on the three honest OmegaX Docs `PENDING` fields |
+| Protocol-oracle control plane     | TypeScript build and 550/550 full tests passed; focused authenticated-control-plane tests include exact capability/receipt validation and malicious substitution rejection; the ACP adapter passes 17/17 focused tests including exact TTL expiry, single-flight re-verification, slow-approval recheck, and failed-refresh blocking                                                                             |
+| Shared health contract/display    | 10 tests passed                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Health agent                      | 267/267 full service tests passed; TypeScript build passed                                                                                                                                                                                                                                                                                                                                                       |
+| Business sponsor/reviewer surface | 51/51 unit tests, type-check, lint, and production build passed; authenticated Chrome smoke passed across public/invite widths 320–1,440, role/API boundaries, and the dedicated Phase 0 route; five synthetic actions remained disabled, the unconfigured service failed closed, refresh could not enable writes, and desktop/mobile had no horizontal overflow                                                 |
+| Member surface                    | 13/13 focused and 1,173/1,173 full tests passed across 165 files; lint and production build passed                                                                                                                                                                                                                                                                                                               |
+| Health product browser audit      | Member coverage surface rendered at 1280×900 and 390×844 without horizontal overflow or console errors; source semantics and responsive classes compile and lint. This is not zoom, keyboard, screen-reader, contrast, or WCAG-conformance proof                                                                                                                                                                 |
+| Virtuals ACP dependency review    | Exact package 0.1.9 provenance and Robinhood declarations were source-checked; an isolated production audit found two high, one moderate, and one low transitive advisories, and the package test script is a placeholder. The package remains deliberately uninstalled in the health platform                                                                                                                   |
+| Website                           | 72/72 tests passed; production client and SSR builds, 11 prerendered routes, status, token-packet, claim, distribution, and generated-output gates passed                                                                                                                                                                                                                                                        |
+| Website browser QA                | Manual desktop checks were reported for `/`, `/agent`, `/protocol`, `/design-partner`, and `/risk`, with mobile checks for `/agent`, `/protocol`, `/design-partner`, and `/risk`; navigation, labels, overflow, and the gated-route redirect were checked, but the browser evidence was not archived in the repository                                                                                           |
+| Marketing artifacts               | Deck and one-pager checksums match the visually reviewed files; 15 LinkedIn posts, 20 X posts, three threads, and five core assets pass the automated claim gate                                                                                                                                                                                                                                                 |
 
 A passing local test does not prove a live adapter, security audit, legal
 structure, sponsor demand, or production operation.
@@ -316,6 +367,9 @@ structure, sponsor demand, or production operation.
 - `906167e6` — eligibility, custody, hostile-token, and source-boundary
   hardening
 - `d02cf8cd` — regenerated canonical Robinhood artifacts
+- `6392e2c7` — protocol-major-v2 authority, economic-event, blocked-attempt,
+  invariant, incident, and release controls
+- `b384e3e3` — regenerated canonical protocol-major-v2 artifacts
 
 Protocol commits are signed off. No protocol commit has been pushed or
 deployed from this branch.
@@ -326,16 +380,22 @@ deployed from this branch.
 - `acfe10d` — SDK release-boundary hardening
 - `a2c268f` — signed eligibility issuance/revocation API and latest generated
   protocol synchronization
+- `dc9d8f1` — provider-neutral smart-account lifecycle boundary
+- `154ddc4` — exact protocol-major-v2 migration, economic-event decoder,
+  blocked-attempt support, typed compatibility errors, and regenerated docs
 
 No SDK commit has been pushed or published from this branch.
 
 The synchronized SDK records canonical protocol source
-`906167e68a91b2482d936363395f0aaf2b325d12`, protocol artifact SHA-256
-`4fb4534ac8bf47118a092647edb1a1d47f9023e5826bc3c6b2d1654d8ff94c29`,
-MembershipRegistry ABI SHA-256
-`0f8ecfb8296257f36d2b148e722c4b35760d3237b13abd86f70729fb6c4c7fc6`, and
-deployment-code commitment
-`0xba2f28e7888a1d48666ee9c86e713bb4c879699a3f1157f708917aa78cf76374`.
+`6392e2c774b66252b62245ffee18c18b3803b9be`, schema version 2, protocol suite
+major 2, economic-event schema version 2, protocol artifact SHA-256
+`3e66c8340badccb9e413414e7dada7e80c3a8d46560d439153a799a9be5e2f1b`,
+PoolVault ABI SHA-256
+`4e8dae8989e20802b7cdcecf5accc413f0a0ffd3da554f0e18d0c78885ace44d`,
+`EconomicActivity` topic 0
+`0x66c2674649a39002b7b60387490bfe265f1679193ced8acb3ffb131893cde2f6`,
+and deployment-code commitment
+`0xafca0d891a53056ba7689c1c83a49d48ce7337e24709f380d52459892fe39677`.
 
 ### Health platform
 
@@ -353,6 +413,8 @@ after owner approval.
 - `f8fdeb4` — evidence-gated launch surface
 - `d9a6281` — verified sponsor collateral
 - `77cfb32` — pre-hydration gated-route redirect
+- `2fd3261` — reconciled public-program truth and complete token-publication
+  packet gates
 
 No website commit has been pushed or deployed from this branch. The currently
 deployed site must not be described as containing this release.
@@ -379,9 +441,15 @@ The following are intentionally not replaced by more local code:
 6. **Production services:** durable identity, eligibility, workflow, evidence,
    authorization, audit, report, notification, indexer, KMS, object-store,
    scanner, telemetry, and on-call adapters are mounted and exercised.
-7. **Virtuals ACP:** eligibility, Robinhood support, package/runtime mechanics,
-   USDG handling, entity/account requirements, quote/job behavior, and public
-   data boundary are confirmed in writing and proven with a tokenless job.
+7. **Virtuals ACP:** package-level Robinhood declarations and the exact USDG
+   label normalization are already source-verified. Eligibility, entity/account
+   requirements, exact dependency installation and integrity, live bytecode/API
+   mechanics, registry enrollment, allowance, operating funding, quote/job
+   behavior, bounded verification freshness, reconnect reconciliation, and the
+   public-data boundary still need independent runtime verification and a
+   low-value tokenless canary. The reviewed package's four production
+   advisories and placeholder test also require a recorded resolution or risk
+   acceptance before installation.
 8. **Token:** product, legal, security, treasury, distribution, market-health,
    platform, and funded-program gates independently pass. No program right,
    reserve, claim, decision, or member access depends on the token.
