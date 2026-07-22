@@ -25,6 +25,15 @@ This path is intentionally launch-truth-first: `Travel 30` is the primary reserv
 
 ## Sections
 
+### Robinhood Chain and Virtuals target plan
+
+- [Robinhood and Virtuals strategy and implementation index](./robinhood-virtuals/README.md) — five-pass, product-first plan for a sponsor-funded Genesis Protection Program, Robinhood-native protocol and agent, conditional Virtuals token launch, GTM, safety gates, and ninety-day backlog
+
+This is a proposed target strategy, not a live product, customer, legal status,
+deployment, token, Robinhood relationship, or Virtuals approval. The current
+public protocol surface remains the source of truth until a release packet and
+verified deployment explicitly supersede it.
+
 ### Architecture
 
 - [Repository Layout](./architecture/repository-layout.md)
