@@ -90,6 +90,17 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "authorizationDigest",
+        "type": "bytes32"
+      }
+    ],
+    "name": "RevokedEligibilityAuthorization",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "SignatureAlreadyUsed",
     "type": "error"
@@ -132,6 +143,43 @@
     "anonymous": false,
     "inputs": [],
     "name": "EIP712DomainChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "programId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "authorizationDigest",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "eligibilityAttestor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "submittedBy",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "revocationNonce",
+        "type": "uint256"
+      }
+    ],
+    "name": "EligibilityAuthorizationRevoked",
     "type": "event"
   },
   {
@@ -244,6 +292,19 @@
     ],
     "name": "MembershipStateChanged",
     "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "ELIGIBILITY_REVOCATION_TYPEHASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
     "inputs": [],
@@ -482,6 +543,38 @@
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "authorizationDigest",
+        "type": "bytes32"
+      }
+    ],
+    "name": "eligibilityAuthorizationRevoked",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "revoked",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "eligibilityRevocationNonce",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "membershipId",
         "type": "bytes32"
       }
@@ -537,6 +630,47 @@
       }
     ],
     "name": "hashEligibility",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "programId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "authorizationDigest",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint64",
+            "name": "validUntil",
+            "type": "uint64"
+          }
+        ],
+        "internalType": "struct RobinhoodTypes.EligibilityRevocation",
+        "name": "revocation",
+        "type": "tuple"
+      }
+    ],
+    "name": "hashEligibilityRevocation",
     "outputs": [
       {
         "internalType": "bytes32",
@@ -784,6 +918,99 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "programId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "memberCommitment",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "account",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "termsCommitment",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "privacyCommitment",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint64",
+            "name": "validUntil",
+            "type": "uint64"
+          }
+        ],
+        "internalType": "struct RobinhoodTypes.Eligibility",
+        "name": "eligibility",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "programId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "authorizationDigest",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint64",
+            "name": "validUntil",
+            "type": "uint64"
+          }
+        ],
+        "internalType": "struct RobinhoodTypes.EligibilityRevocation",
+        "name": "revocation",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "revokeEligibilityAuthorization",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "authorizationDigest",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bool",
+        "name": "changed",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

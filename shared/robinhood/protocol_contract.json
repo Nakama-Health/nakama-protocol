@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "0cb347f1ac0d790b1fc7053a6c0fcb2e0a53dd75",
+  "sourceCommit": "906167e68a91b2482d936363395f0aaf2b325d12",
   "chainFamily": "eip155",
   "supportedChains": [
     {
@@ -45,16 +45,16 @@
       "SafetyGuardian"
     ],
     "componentCreationCodeHashes": [
-      "0x82f644b052b030f0a0ca4038b1267aa1abc2d6bec890086d29aaf755661dbce4",
-      "0x65e7fb1555ce154f8430ded8ecbf14dbaedffb6ca9116488624c97dda3bcd5f9",
-      "0x36374d4a61fb279a6f2a6fe786438d4e0bcb1885423c83d84e9fd7f52c0c1cdf",
-      "0xacd5738498db491261b419d5e5d2012f621eb30d9a3b7633b5c9d48272230ac3",
-      "0xed0fa52b6d38d4857377af6f6f8b7685bff3fb3e4914e6f8bd7bcef3492978c0",
-      "0xa9e0c47b63c4c698298b135125b87db768f66807daadddf590dfe9d4e3c0a971",
-      "0x9792a05ee8a069cd976a26a9eef3997a81a6b71c6effca035323dc8e665de144",
-      "0xdf772d308100e2f386c6f192e43c44aa6e94a6cd21b989648fb7a4eb8853502d"
+      "0xe4e6757d7f424f4d47467082b18ec7e4035c691c45c89f8616663aa039da7176",
+      "0xa05031cc64a34545d850901993ce6b9a6a0d720decfa811df1a594583690e3eb",
+      "0x64bccd327c27d36408d9ab78b17bb57b50e9874c95136755ede74a8c61874f50",
+      "0x004c145a0094d1272f7b99aad76195e20f78151c1d3b1b7384f59f2412bf3ec4",
+      "0x4f46819a3b6e1faf29e69e7fd93286eaf3616b142444cd92e2fb4eec183f595d",
+      "0xc3612a89d032733b6c443e50ca2f799c774686937eeba8bd64afe82d6533c369",
+      "0x7b082eaf23a852bec4e2134c9abe95512ac08457c60042d32c26fa75898da681",
+      "0x1b55124d9731daf68f5c3f564b5c5271612db051f10591802bec389386cc22db"
     ],
-    "deploymentCodeCommitment": "0xce06ac68424ff1a9490fdc1629bd9a45936334011d0a91b2ba07cd7470224ad0",
+    "deploymentCodeCommitment": "0xba2f28e7888a1d48666ee9c86e713bb4c879699a3f1157f708917aa78cf76374",
     "deploymentKind": "factory-authorized-create2",
     "programIdDerivation": "keccak256(abi.encode(NAKAMA_ROBINHOOD_PROGRAM_V1,chainId,factory,sponsor,suiteId,salt))",
     "componentSaltDerivation": "keccak256(abi.encode(programId,uint8(componentIndex)))"
@@ -447,9 +447,9 @@
         }
       ],
       "abiSha256": "13fb7931d4bb89cf3cdf7360b430d6fa1fceb80349459a76398ad3063545492c",
-      "creationBytecodeHash": "0xe456716bae327a8f6d7d1badfb4f9295402eb435b90f1ee83562df67cafc8a0c",
+      "creationBytecodeHash": "0xdc71f6aed43e5e353d1d71989606dff8c9ba25cf311fa0e649f96890bc6bafd7",
       "creationBytecodeBytes": 2986,
-      "runtimeBytecodeTemplateHash": "0x67eeb68735feac0d221c66eeeaec662fdb5e0ca06f7245e7fc6066b31f49c46c",
+      "runtimeBytecodeTemplateHash": "0x09b066a076a031c12a3bdf8ebbbec8c96882d45f1ddf00eaae62bd904874877a",
       "runtimeBytecodeBytes": 2830,
       "immutableReferences": []
     },
@@ -904,9 +904,9 @@
         }
       ],
       "abiSha256": "e48e9c7835f61bd2b343e3bba0ed3199a27498b504d7695ea4290da68894e3d0",
-      "creationBytecodeHash": "0x68af9fe2c18698546d91ae7de263f0f9c957623f950237b227c7c6aac5ad4df9",
+      "creationBytecodeHash": "0x93d9371b7ff4e04e4f62521a9cabf01f6f6931ac35fe7b18381a1c32e2bffb8b",
       "creationBytecodeBytes": 2340,
-      "runtimeBytecodeTemplateHash": "0xc951fffa7c717b0a9e5596082918048f95875170076dc5e2dbb71bb02bc265af",
+      "runtimeBytecodeTemplateHash": "0x3041b05af40ffb2baedba17e6d33d7ff009ff1ce395a446131bda594b97499e5",
       "runtimeBytecodeBytes": 2184,
       "immutableReferences": []
     },
@@ -1218,9 +1218,9 @@
         }
       ],
       "abiSha256": "532c832ffaab3485150f5e50fe3e201071387bc3b4d704d85ae3cdbbe9bde390",
-      "creationBytecodeHash": "0x0e6786bfd4f14ba57e57ba86a1a224e5c5cc746cb440529476384538cbeaab66",
+      "creationBytecodeHash": "0x67f8391af1d9f704a888ea643946bec22a198f01aae2eb145a7965cf7e4a0051",
       "creationBytecodeBytes": 2464,
-      "runtimeBytecodeTemplateHash": "0xf45e9fbe820a281e9e54a27e06eb718b9a570e4da1a3aacbf804eb3bcfc23d56",
+      "runtimeBytecodeTemplateHash": "0x19c2bfece6c7e5726c7bdfb2896001b76d4e7ceffee937af1973c0b3443ef002",
       "runtimeBytecodeBytes": 2419,
       "immutableReferences": [
         {
@@ -2096,9 +2096,9 @@
         }
       ],
       "abiSha256": "d36dce8a99ec631fd175bea1f7d3d9e49dd34d0794f9c417deddcf38e34964d8",
-      "creationBytecodeHash": "0x126692c51f5b777d60c4b6262e4d1e8f164e3cba916ab886f964d5ee21a651e6",
+      "creationBytecodeHash": "0x9dc23cae337d0c3347463fd66c4e42d844066f6807374feb52221b6ae2d74be3",
       "creationBytecodeBytes": 14675,
-      "runtimeBytecodeTemplateHash": "0x81bdbb9824c47a49f72bdb4bb9cefae7e4dd0f9ec69d0a5b38822de7d7cb9ecd",
+      "runtimeBytecodeTemplateHash": "0xdca5998f3bd1f942fb59f098173a4e69204cdd8e88c86c3eaf23ad6578bc7a95",
       "runtimeBytecodeBytes": 10345,
       "immutableReferences": [
         {
@@ -3280,9 +3280,9 @@
         }
       ],
       "abiSha256": "bf6cf82d09944d94a7f668c9bd44b99705ba9d75ea6e76084c0b5053d0c35d81",
-      "creationBytecodeHash": "0x82f644b052b030f0a0ca4038b1267aa1abc2d6bec890086d29aaf755661dbce4",
+      "creationBytecodeHash": "0xe4e6757d7f424f4d47467082b18ec7e4035c691c45c89f8616663aa039da7176",
       "creationBytecodeBytes": 10989,
-      "runtimeBytecodeTemplateHash": "0xe501dd37329e3f1cccd45e50874765d9c7a28069c0970dc82e61766e96b7155b",
+      "runtimeBytecodeTemplateHash": "0xad4f16a7afe956584bd1e56dce5d5c178406c64fbb8fe13c1b55ff1511a05a47",
       "runtimeBytecodeBytes": 7867,
       "immutableReferences": [
         {
@@ -4517,9 +4517,9 @@
         }
       ],
       "abiSha256": "e59200c586ab359fc217928a31395c6627f321b2977e63925fc37198ffc3008d",
-      "creationBytecodeHash": "0x65e7fb1555ce154f8430ded8ecbf14dbaedffb6ca9116488624c97dda3bcd5f9",
+      "creationBytecodeHash": "0xa05031cc64a34545d850901993ce6b9a6a0d720decfa811df1a594583690e3eb",
       "creationBytecodeBytes": 7562,
-      "runtimeBytecodeTemplateHash": "0x626d2a92ea7851d3bc3c61d18d6d6edd6b312fc762a10fff2b228bbb81a82141",
+      "runtimeBytecodeTemplateHash": "0x595ced7f2946fbcac0846e24675500fa71319fd350c39bf72f1c104eb4918011",
       "runtimeBytecodeBytes": 6975,
       "immutableReferences": [
         {
@@ -4729,6 +4729,17 @@
           "type": "error"
         },
         {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "authorizationDigest",
+              "type": "bytes32"
+            }
+          ],
+          "name": "RevokedEligibilityAuthorization",
+          "type": "error"
+        },
+        {
           "inputs": [],
           "name": "SignatureAlreadyUsed",
           "type": "error"
@@ -4771,6 +4782,43 @@
           "anonymous": false,
           "inputs": [],
           "name": "EIP712DomainChanged",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "programId",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "authorizationDigest",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "eligibilityAttestor",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "address",
+              "name": "submittedBy",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "revocationNonce",
+              "type": "uint256"
+            }
+          ],
+          "name": "EligibilityAuthorizationRevoked",
           "type": "event"
         },
         {
@@ -4883,6 +4931,19 @@
           ],
           "name": "MembershipStateChanged",
           "type": "event"
+        },
+        {
+          "inputs": [],
+          "name": "ELIGIBILITY_REVOCATION_TYPEHASH",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
         },
         {
           "inputs": [],
@@ -5121,6 +5182,38 @@
           "inputs": [
             {
               "internalType": "bytes32",
+              "name": "authorizationDigest",
+              "type": "bytes32"
+            }
+          ],
+          "name": "eligibilityAuthorizationRevoked",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "revoked",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "eligibilityRevocationNonce",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
               "name": "membershipId",
               "type": "bytes32"
             }
@@ -5176,6 +5269,47 @@
             }
           ],
           "name": "hashEligibility",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "components": [
+                {
+                  "internalType": "bytes32",
+                  "name": "programId",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "bytes32",
+                  "name": "authorizationDigest",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "nonce",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "validUntil",
+                  "type": "uint64"
+                }
+              ],
+              "internalType": "struct RobinhoodTypes.EligibilityRevocation",
+              "name": "revocation",
+              "type": "tuple"
+            }
+          ],
+          "name": "hashEligibilityRevocation",
           "outputs": [
             {
               "internalType": "bytes32",
@@ -5426,6 +5560,99 @@
           "type": "function"
         },
         {
+          "inputs": [
+            {
+              "components": [
+                {
+                  "internalType": "bytes32",
+                  "name": "programId",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "bytes32",
+                  "name": "memberCommitment",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "address",
+                  "name": "account",
+                  "type": "address"
+                },
+                {
+                  "internalType": "bytes32",
+                  "name": "termsCommitment",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "bytes32",
+                  "name": "privacyCommitment",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "nonce",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "validUntil",
+                  "type": "uint64"
+                }
+              ],
+              "internalType": "struct RobinhoodTypes.Eligibility",
+              "name": "eligibility",
+              "type": "tuple"
+            },
+            {
+              "components": [
+                {
+                  "internalType": "bytes32",
+                  "name": "programId",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "bytes32",
+                  "name": "authorizationDigest",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "nonce",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "validUntil",
+                  "type": "uint64"
+                }
+              ],
+              "internalType": "struct RobinhoodTypes.EligibilityRevocation",
+              "name": "revocation",
+              "type": "tuple"
+            },
+            {
+              "internalType": "bytes",
+              "name": "signature",
+              "type": "bytes"
+            }
+          ],
+          "name": "revokeEligibilityAuthorization",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "authorizationDigest",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bool",
+              "name": "changed",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
           "inputs": [],
           "name": "totalActivated",
           "outputs": [
@@ -5452,102 +5679,110 @@
           "type": "function"
         }
       ],
-      "abiSha256": "72ac7186bd82a54da9d795e44889c77c60a020bcec212af92a12f49ebec3f818",
-      "creationBytecodeHash": "0x36374d4a61fb279a6f2a6fe786438d4e0bcb1885423c83d84e9fd7f52c0c1cdf",
-      "creationBytecodeBytes": 9358,
-      "runtimeBytecodeTemplateHash": "0x2c31c53f6e3e3bfa16a3000e4a583b51c7c4b17b9f348697e18b7a9ca65d99d1",
-      "runtimeBytecodeBytes": 7849,
+      "abiSha256": "0f8ecfb8296257f36d2b148e722c4b35760d3237b13abd86f70729fb6c4c7fc6",
+      "creationBytecodeHash": "0x64bccd327c27d36408d9ab78b17bb57b50e9874c95136755ede74a8c61874f50",
+      "creationBytecodeBytes": 10826,
+      "runtimeBytecodeTemplateHash": "0xadb4765442064b692bf03c032d8fc9c0c43bb4b7644de0ccc666efaf7cc5199a",
+      "runtimeBytecodeBytes": 9303,
       "immutableReferences": [
         {
-          "start": 311,
+          "start": 366,
           "length": 32
         },
         {
-          "start": 615,
+          "start": 670,
           "length": 32
         },
         {
-          "start": 690,
+          "start": 745,
           "length": 32
         },
         {
-          "start": 984,
+          "start": 1039,
           "length": 32
         },
         {
-          "start": 1183,
+          "start": 1238,
           "length": 32
         },
         {
-          "start": 1304,
+          "start": 1359,
           "length": 32
         },
         {
-          "start": 1854,
+          "start": 1909,
           "length": 32
         },
         {
-          "start": 1975,
+          "start": 2030,
           "length": 32
         },
         {
-          "start": 2194,
+          "start": 2249,
           "length": 32
         },
         {
-          "start": 2425,
+          "start": 2480,
           "length": 32
         },
         {
-          "start": 2952,
+          "start": 3007,
           "length": 32
         },
         {
-          "start": 3009,
+          "start": 3064,
           "length": 32
         },
         {
-          "start": 3121,
+          "start": 3176,
           "length": 32
         },
         {
-          "start": 3163,
+          "start": 3218,
           "length": 32
         },
         {
-          "start": 3458,
+          "start": 3609,
           "length": 32
         },
         {
-          "start": 3557,
+          "start": 3709,
           "length": 32
         },
         {
-          "start": 4282,
+          "start": 4437,
           "length": 32
         },
         {
-          "start": 6381,
+          "start": 6626,
           "length": 32
         },
         {
-          "start": 6833,
+          "start": 6668,
           "length": 32
         },
         {
-          "start": 6887,
+          "start": 7681,
           "length": 32
         },
         {
-          "start": 6966,
+          "start": 8844,
           "length": 32
         },
         {
-          "start": 7004,
+          "start": 8898,
           "length": 32
         },
         {
-          "start": 7070,
+          "start": 8977,
+          "length": 32
+        },
+        {
+          "start": 9015,
+          "length": 32
+        },
+        {
+          "start": 9081,
           "length": 32
         }
       ]
@@ -6115,9 +6350,9 @@
         }
       ],
       "abiSha256": "0b317cb621d6b27adb2c41aa1a4772391811b612647b009e98a61c3466e1c7af",
-      "creationBytecodeHash": "0xacd5738498db491261b419d5e5d2012f621eb30d9a3b7633b5c9d48272230ac3",
+      "creationBytecodeHash": "0x004c145a0094d1272f7b99aad76195e20f78151c1d3b1b7384f59f2412bf3ec4",
       "creationBytecodeBytes": 5775,
-      "runtimeBytecodeTemplateHash": "0xc62fe13543f91a862488d08ea3eed6b73c4d4de056b84c25b37ec74949c3bded",
+      "runtimeBytecodeTemplateHash": "0x495878b1d5742b58d360c65f0b8b87fd9f170b53e3cb0e0de179483cffef1390",
       "runtimeBytecodeBytes": 4370,
       "immutableReferences": [
         {
@@ -7114,9 +7349,9 @@
         }
       ],
       "abiSha256": "59bcd33d84304ddc2a05003367b3d36dfb849b3ae8d180bb5045db85eb27aa42",
-      "creationBytecodeHash": "0xed0fa52b6d38d4857377af6f6f8b7685bff3fb3e4914e6f8bd7bcef3492978c0",
+      "creationBytecodeHash": "0x4f46819a3b6e1faf29e69e7fd93286eaf3616b142444cd92e2fb4eec183f595d",
       "creationBytecodeBytes": 10840,
-      "runtimeBytecodeTemplateHash": "0x7583470ca3faa1a4faea70a1373ecef90c8e5865b81d3db0452d562376efab6c",
+      "runtimeBytecodeTemplateHash": "0xae873a01afabd2060145d7733e59d01bf88e2882724ff418061934c42984b63a",
       "runtimeBytecodeBytes": 10108,
       "immutableReferences": [
         {
@@ -7453,9 +7688,9 @@
         }
       ],
       "abiSha256": "18c43554fa0c78aae415c0265e177be11f7c1a46c04f66f97d7ba6fbcea22b03",
-      "creationBytecodeHash": "0xa9e0c47b63c4c698298b135125b87db768f66807daadddf590dfe9d4e3c0a971",
+      "creationBytecodeHash": "0xc3612a89d032733b6c443e50ca2f799c774686937eeba8bd64afe82d6533c369",
       "creationBytecodeBytes": 2266,
-      "runtimeBytecodeTemplateHash": "0x6b369a1a7fe42b7418354878b66781ffb7520edf14a1d5b8378e905125f1456d",
+      "runtimeBytecodeTemplateHash": "0x10116fecb0f6fea67cd6a15f5612a3b9e3c6976a8a3379489b45804a4825b1d8",
       "runtimeBytecodeBytes": 1806,
       "immutableReferences": [
         {
@@ -8293,9 +8528,9 @@
         }
       ],
       "abiSha256": "1adb7dee99b684a16343dfa9fd39334df60014e8fc243b44c3c8b5bd37562a74",
-      "creationBytecodeHash": "0x9792a05ee8a069cd976a26a9eef3997a81a6b71c6effca035323dc8e665de144",
+      "creationBytecodeHash": "0x7b082eaf23a852bec4e2134c9abe95512ac08457c60042d32c26fa75898da681",
       "creationBytecodeBytes": 8023,
-      "runtimeBytecodeTemplateHash": "0x7d37a51f519c61d19ae6d55f8ee1ec1ee0a0b640698f1a12c91417c4422f3436",
+      "runtimeBytecodeTemplateHash": "0xdcfea8d9b33b3e0791c8c73dc2e97e3e13c4f792f5913629f079c917fd427ce3",
       "runtimeBytecodeBytes": 7410,
       "immutableReferences": [
         {
@@ -8887,9 +9122,9 @@
         }
       ],
       "abiSha256": "7a41de5c4524a4182f9315575613487e4829830c0eb74c720d22a84513a66bd5",
-      "creationBytecodeHash": "0xdf772d308100e2f386c6f192e43c44aa6e94a6cd21b989648fb7a4eb8853502d",
+      "creationBytecodeHash": "0x1b55124d9731daf68f5c3f564b5c5271612db051f10591802bec389386cc22db",
       "creationBytecodeBytes": 3550,
-      "runtimeBytecodeTemplateHash": "0xdfcc4bbb2bceff6cba4c7b0db9e4519a8eb2d1c6af2bd931feb879bca12e93fe",
+      "runtimeBytecodeTemplateHash": "0x8a77514fad909e611cc50ba953248e91f107f0e46129bda98ebf71de182836a1",
       "runtimeBytecodeBytes": 3124,
       "immutableReferences": [
         {

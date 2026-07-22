@@ -19,7 +19,7 @@
   "type": "module",
   "scripts": {
     "ethereum:build": "hardhat build --build-profile production",
-    "ethereum:test": "hardhat test mocha",
+    "ethereum:test": "hardhat test mocha --build-profile production",
     "ethereum:contract": "npm run ethereum:build && node scripts/generate_ethereum_contract.mjs",
     "ethereum:contract:check": "npm run ethereum:build && node scripts/generate_ethereum_contract.mjs --check",
     "ethereum:manifest:promote": "npm run ethereum:contract:check && node scripts/promote_ethereum_mainnet_manifest.mjs",
