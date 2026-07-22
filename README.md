@@ -1,20 +1,30 @@
 # Nakama Protocol
 
-Nakama Protocol's current launch job is concrete: help a sponsor fund Travel 30 acute travel protection for a cohort, show whether the reserve posture can support it, and trace every claim from intake to payout.
+This branch's primary target is a Robinhood Chain-native, sponsor-funded Genesis Protection Program. One accountable sponsor posts the complete USDG budget for a bounded cohort; eligible members activate against exact terms; accountable humans sign decisions and appeals; and approved obligations settle from a segregated program vault.
 
-Plainly: a sponsor can fund a protected group, see what backs the promise, and audit what happened when a claim is reviewed or paid.
+Plainly: a sponsor can fund a protected group, members can understand and use a real support program without buying a token, and everyone can reconcile what was promised, reserved, approved, paid, and returned.
 
-This branch adds an immutable Ethereum mainnet implementation candidate with a one-purpose deployment factory, a custody and accounting core, a separately bound policy registry, domain-isolated ERC-20 vaults, contributor-controlled exits, commitment-based claims, strict-majority attestation, one challenge round, and permissionless finalization and settlement. It is pre-mainnet and unaudited: no Ethereum address or deployment transaction is configured, and the existing Solana devnet program remains the currently deployed beta until an audited migration is explicitly completed.
+The isolated Solidity implementation is complete as a local/testnet-ready candidate. It remains unaudited and undeployed: there is no Nakama Robinhood address, funded program, legal approval, Robinhood relationship, Virtuals approval, or token launch. Solana devnet and the earlier Ethereum candidate remain preserved implementation history, not this branch's target architecture.
 
-The current public launch reference is Genesis Protect Acute. `Travel 30` is the primary Founder SKU: a 100-seat cohort where 99 USDC reserves access to a reserve-indexed 30-day travel cap targeting up to 250,000 USDC at activation, unlocked only when the posted claims-paying reserve/backstop reaches the required threshold and final terms are ready. `Event 7` is the short-window cohort/demo SKU, with a 7-day window and a 3,000 USDC fixed-benefit cap. Both remain bounded launch surfaces: reservations are not active cover today, pending custody is not claims-paying reserve, this is not comprehensive travel insurance, and Phase 0 claim review is operator-backed rather than fully decentralized.
+## Robinhood Phase 0 Implementation Candidate
 
-On Solana devnet beta today, the public surface in this repository can already anchor:
+The Solidity surface under [`contracts/robinhood/`](./contracts/robinhood/README.md) implements deterministic versioned deployment, exact six-decimal USDG custody, pseudonymous membership, typed human decisions and appeals, exact settlement, bounded agent policy, and scoped incident controls.
+
+The canonical interface is [`shared/robinhood/protocol_contract.json`](./shared/robinhood/protocol_contract.json). Start with [Robinhood Phase 0 Protocol Implementation](./docs/architecture/robinhood-phase0-protocol.md) and the [Robinhood/Virtuals strategy](./docs/robinhood-virtuals/README.md).
+
+## Preserved Legacy Implementations
+
+The following surfaces remain available for compatibility, research, and migration review. They do not define the new Robinhood-native product.
+
+### Solana devnet beta
+
+The existing Solana beta can anchor:
 
 - sponsor-funded reward or protection lanes with explicit reserve and funding-line attribution
 - contributor-signed backstop deposits with on-chain contribution/return balances
 - operator-mediated member enrollment, claim intake, obligations, reserve booking, and payouts
 
-## Ethereum Implementation Candidate
+### Ethereum implementation candidate
 
 The Solidity 0.8.28 surface is immutable by design: it has no proxy, global owner, global pause, or arbitrary controller-created payout. A constructor-only `NakamaProtocolFactory` atomically creates `NakamaPolicyRegistry` at factory CREATE nonce 1 and `NakamaCoverageProtocol` at nonce 2, then retains getters only. Scope-local controllers can stop new activity, but existing claims, contributor exits from unencumbered equity, finalization, reservation, and settlement remain available.
 
@@ -28,8 +38,9 @@ Start with:
 
 ## Start Here
 
-- [Genesis Protect V1 Curve Launch Plan](./docs/architecture/genesis-protect-v1-curve-launch.md)
-- [Genesis Protect Claim Trace](./docs/architecture/genesis-protect-claim-trace.md)
+- [Robinhood Phase 0 Protocol Implementation](./docs/architecture/robinhood-phase0-protocol.md)
+- [Robinhood and Virtuals Strategy](./docs/robinhood-virtuals/README.md)
+- [Robinhood Contract Package](./contracts/robinhood/README.md)
 - [What Exists Today](https://docs.nakama.health/docs/protocol/current-program-surface)
 - [Repository Documentation Map](./docs/README.md)
 - [SDK Overview](https://docs.nakama.health/docs/sdk/sdk-overview)
@@ -38,12 +49,12 @@ Start with:
 
 ### Sponsors and protection operators
 
-Fund a Travel 30 cohort, inspect reserve sufficiency, follow claim obligations, and prove payouts without treating pending custody, premiums, LP capital, or claims-paying reserve as the same thing.
+Fund a bounded Genesis cohort in USDG, enroll eligible members against exact terms, follow request and appeal obligations, and prove payouts without mixing program reserves with token or agent treasury activity.
 
 Start with:
 
-- [Genesis Protect V1 Curve Launch Plan](./docs/architecture/genesis-protect-v1-curve-launch.md)
-- [Genesis Protect Claim Trace](./docs/architecture/genesis-protect-claim-trace.md)
+- [Genesis Product Specification](./docs/robinhood-virtuals/03-genesis-product-spec.md)
+- [Robinhood Phase 0 Protocol Implementation](./docs/architecture/robinhood-phase0-protocol.md)
 - [What Exists Today](https://docs.nakama.health/docs/protocol/current-program-surface)
 
 ### Reserve and backstop integrators

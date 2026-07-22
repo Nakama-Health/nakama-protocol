@@ -22,6 +22,7 @@ This directory contains the repository's command-line helpers.
 ### Generation
 
 - `generate_ethereum_contract.mjs` produces the schema-v3 factory/core/registry/vault artifact at `shared/ethereum/protocol_contract.json` and four standalone ABIs
+- `generate_robinhood_contract.mjs` produces the Robinhood Phase 0 twelve-contract artifact at `shared/robinhood/protocol_contract.json`, including deterministic component hashes, and twelve standalone ABIs
 - `generate_protocol_contract.ts` regenerates checked-in shared artifacts
 - `generate_schema_metadata_hash.ts` and `generate_outcome_rule_hashes.ts` regenerate deterministic schema-related outputs
 - `generate_standard_health_outcomes_schema.ts` rebuilds the standard schema definition
@@ -38,6 +39,10 @@ This directory contains the repository's command-line helpers.
 - `lib/ethereum_deploy_guard.mjs` validates operator-supplied deployment intent, source, release approval, signer, balance, network, every runtime size, and every initcode size
 - `lib/ethereum_release_preflight.mjs` binds a clean git checkout to all four compiled artifacts and ABIs, the aggregate generated artifact, audit digest, approval digest, and reviewed operator-local release manifest
 - `lib/ethereum_manifest_promotion.mjs` validates both deployment stages and emits the SDK's canonical `status: deployed`, `verified: true`, `auditStatus: audited` field set
+
+### Robinhood Chain testnet
+
+- `deploy_robinhood_testnet.ts` deploys one fully bound but unfunded Phase 0 suite only after an explicit testnet confirmation, exact chain/USDG validation, and a public-safe operator-local configuration file; it writes no secrets and prints an unverified deployment receipt for independent readback
 
 ### Devnet and operator workflows
 
@@ -59,6 +64,8 @@ This directory contains the repository's command-line helpers.
 
 - Prefer package scripts from the repository root when they exist.
 - Use `npm run ethereum:test` for the Solidity and deployment-guard suite, `npm run ethereum:contract` to regenerate the canonical four-ABI artifact set, and `npm run ethereum:contract:check` to reject stale artifacts.
+- Use `npm run robinhood:test` for the Robinhood Phase 0 suite and `npm run robinhood:contract` after any `contracts/robinhood/` change. `robinhood:contract:check` is part of the public gate so SDK ABIs cannot silently drift.
+- `npm run robinhood:deploy:testnet` is transaction-producing operator tooling. It requires `ROBINHOOD_TESTNET_RPC_URL`, `ROBINHOOD_TESTNET_PRIVATE_KEY`, `ROBINHOOD_TESTNET_USDG_ADDRESS`, `NAKAMA_ROBINHOOD_TESTNET_CONFIG`, and the exact confirmation `DEPLOY_UNFUNDED_NAKAMA_PHASE0_TO_ROBINHOOD_TESTNET`. Never use the mock USDG address outside local tests.
 - Use `npm run ethereum:deploy:preflight` before any mainnet action. It requires the ignored, operator-local `deployments/ethereum-mainnet.release.json`, performs read-only network checks, and never submits a transaction. Commit the source and generated artifact first, then populate the local manifest with that existing HEAD; only `ethereum-mainnet.release.example.json` is tracked.
 - `npm run ethereum:deploy:mainnet` is intentionally unavailable until the checkout is clean and the following variables exactly match the reviewed release: `ETHEREUM_MAINNET_RPC_URL`, `ETHEREUM_MAINNET_PRIVATE_KEY`, `NAKAMA_MAINNET_EXPECTED_DEPLOYER`, `NAKAMA_MAINNET_SOURCE_COMMIT`, `NAKAMA_MAINNET_AUDIT_REPORT_SHA256`, `NAKAMA_MAINNET_RELEASE_APPROVAL_SHA256`, `NAKAMA_MAINNET_CONFIRMATIONS`, `NAKAMA_MAINNET_MIN_DEPLOYER_BALANCE_WEI`, and `NAKAMA_MAINNET_DEPLOY_CONFIRMATION`.
 - The confirmation value must be `DEPLOY_IMMUTABLE_NAKAMA_COVERAGE_PROTOCOL_TO_ETHEREUM_MAINNET`. Keep private keys in the operator's environment or secret store, never in a tracked file.

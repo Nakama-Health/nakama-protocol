@@ -1,0 +1,306 @@
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "programId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "AlreadyRegistered",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidDeployment",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OnlyFactory",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "programId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "suiteId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sponsor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "program",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "membershipRegistry",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "decisionModule",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "claimManager",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "settlementModule",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "agentAuthorizationRegistry",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "safetyGuardian",
+        "type": "address"
+      }
+    ],
+    "name": "ProgramRegistered",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "factory",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "programId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getDeployment",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "programId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "program",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "vault",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "membershipRegistry",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "decisionModule",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "claimManager",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "settlementModule",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "agentAuthorizationRegistry",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "safetyGuardian",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct RobinhoodTypes.ProgramDeployment",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "programCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "offset",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "limit",
+        "type": "uint256"
+      }
+    ],
+    "name": "programIds",
+    "outputs": [
+      {
+        "internalType": "bytes32[]",
+        "name": "page",
+        "type": "bytes32[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "suiteId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "sponsor",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "programId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "program",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "vault",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "membershipRegistry",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "decisionModule",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "claimManager",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "settlementModule",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "agentAuthorizationRegistry",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "safetyGuardian",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct RobinhoodTypes.ProgramDeployment",
+        "name": "deployment",
+        "type": "tuple"
+      }
+    ],
+    "name": "registerProgram",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "programId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "suiteOf",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "suiteId",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

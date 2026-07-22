@@ -29,15 +29,18 @@ This path is intentionally launch-truth-first: `Travel 30` is the primary reserv
 
 - [Robinhood and Virtuals strategy and implementation index](./robinhood-virtuals/README.md) — five-pass, product-first plan for a sponsor-funded Genesis Protection Program, Robinhood-native protocol and agent, conditional Virtuals token launch, GTM, safety gates, and ninety-day backlog
 
-This is a proposed target strategy, not a live product, customer, legal status,
-deployment, token, Robinhood relationship, or Virtuals approval. The current
-public protocol surface remains the source of truth until a release packet and
-verified deployment explicitly supersede it.
+The Phase 0 contract candidate is now implemented and locally tested; see
+[Robinhood Phase 0 Protocol Implementation](./architecture/robinhood-phase0-protocol.md).
+It is still not a live product, customer, legal status, deployment, token,
+Robinhood relationship, or Virtuals approval. The current public protocol
+surface remains the source of truth until a release packet and verified
+deployment explicitly supersede it.
 
 ### Architecture
 
 - [Repository Layout](./architecture/repository-layout.md)
 - [Ethereum Mainnet Protocol Vertical Slice](./architecture/ethereum-mainnet-protocol.md) — immutable contract boundary, reserve accounting, claim finality, integration, and release gate
+- [Robinhood Phase 0 Protocol Implementation](./architecture/robinhood-phase0-protocol.md) — isolated sponsor-funded USDG suite, canonical ABI, local evidence, and fail-closed deployment boundary
 - [Protocol Vision and Capability Narrative](./architecture/protocol-vision-and-capability-narrative.md)
 - [Solana Program Architecture](./architecture/solana-program-architecture.md)
 - [Solana Instruction Map](./architecture/solana-instruction-map.md)
@@ -122,6 +125,7 @@ verified deployment explicitly supersede it.
 - Use [Public Release Gate](./operations/public-release-gate.md) for the repo-only verification baseline and release-candidate sign-off workflow.
 
 For directory-specific guidance, also see:
+
 - [../e2e/README.md](../e2e/README.md)
 - [../frontend/README.md](../frontend/README.md)
 - [../scripts/README.md](../scripts/README.md)

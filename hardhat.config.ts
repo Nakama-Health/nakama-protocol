@@ -48,5 +48,19 @@ export default defineConfig({
       url: configVariable("ETHEREUM_MAINNET_RPC_URL"),
       accounts: [configVariable("ETHEREUM_MAINNET_PRIVATE_KEY")],
     },
+    robinhoodTestnet: {
+      type: "http",
+      chainType: "generic",
+      chainId: 46630,
+      url: configVariable("ROBINHOOD_TESTNET_RPC_URL"),
+      accounts: [configVariable("ROBINHOOD_TESTNET_PRIVATE_KEY")],
+    },
+    robinhoodMainnet: {
+      type: "http",
+      chainType: "generic",
+      chainId: 4663,
+      url: configVariable("ROBINHOOD_MAINNET_RPC_URL"),
+      accounts: [configVariable("ROBINHOOD_MAINNET_PRIVATE_KEY")],
+    },
   },
 });

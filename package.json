@@ -1,7 +1,7 @@
 {
   "name": "nakama-protocol",
   "version": "0.3.1",
-  "description": "Public Nakama protocol workspace with the current Solana devnet beta and an immutable Ethereum mainnet implementation candidate.",
+  "description": "Public Nakama protocol workspace for the Robinhood-native sponsor-funded Phase 0 implementation, with preserved Solana and Ethereum candidates.",
   "author": "OMEGAX HEALTH FZCO",
   "contributors": [
     "Marino Sabijan, MD"
@@ -25,6 +25,11 @@
     "ethereum:manifest:promote": "npm run ethereum:contract:check && node scripts/promote_ethereum_mainnet_manifest.mjs",
     "ethereum:deploy:preflight": "npm run ethereum:contract:check && node scripts/ethereum_mainnet_preflight.mjs",
     "ethereum:deploy:mainnet": "npm run ethereum:contract:check && hardhat run scripts/deploy_ethereum_mainnet.ts --network mainnet --build-profile production",
+    "robinhood:build": "hardhat build --build-profile production",
+    "robinhood:test": "hardhat test mocha test/ethereum/robinhood/*.ts",
+    "robinhood:contract": "npm run robinhood:build && node scripts/generate_robinhood_contract.mjs",
+    "robinhood:contract:check": "npm run robinhood:build && node scripts/generate_robinhood_contract.mjs --check",
+    "robinhood:deploy:testnet": "npm run robinhood:contract:check && hardhat run scripts/deploy_robinhood_testnet.ts --network robinhoodTestnet --build-profile production",
     "anchor:build": "anchor build",
     "anchor:build:checked": "node scripts/anchor_build_with_stack_gate.mjs",
     "anchor:test": "node scripts/anchor_test_with_stack_gate.mjs",
@@ -83,7 +88,7 @@
     "license:audit": "node scripts/check_dependency_licenses.mjs",
     "security:audit:deps": "node scripts/check_dependency_advisories.mjs",
     "security:sbom": "node scripts/generate_sbom.mjs",
-    "ci:public": "npm run rust:fmt:check && npm run rust:test && npm run rust:lint && npm run quasar:check && npm run idl:freshness:check && npm run protocol:contract:check && npm run test:node && npm run frontend:build && npm run semantic:readiness:check && npm run public:hygiene:check",
+    "ci:public": "npm run rust:fmt:check && npm run rust:test && npm run rust:lint && npm run quasar:check && npm run idl:freshness:check && npm run protocol:contract:check && npm run robinhood:contract:check && npm run robinhood:test && npm run test:node && npm run frontend:build && npm run semantic:readiness:check && npm run public:hygiene:check",
     "verify:public": "npm run ci:public && npm run license:audit && npm run security:audit:deps && npm run security:sbom",
     "doctor": "node scripts/doctor.mjs",
     "verify": "npm run doctor && npm run ci:public"
