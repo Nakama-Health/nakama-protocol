@@ -162,7 +162,9 @@ Searched the rendered and source surfaces for readiness checks, fixture and
 control-plane terminology, raw revisions and reason codes, Phase 0 language,
 unsupported `$0` claims, token-first framing, agent-operated claims, and
 network/payment conflation. The review also challenged every repeated card,
-status chip, and CTA against the single-task hierarchy.
+status chip, and CTA against the single-task hierarchy. A final state audit
+also found that closed document requests could override resolved claim states
+and that the new hierarchy bypassed the active French and Arabic locale.
 
 ### Pass 4 — Implementation
 
@@ -172,18 +174,22 @@ Implemented the flat, upload-first claim page; progressive disclosure;
 plain-language Program Controls; distinct loading, disabled, error, network,
 and payment states; one-error-at-a-time intake validation; public 404/noindex
 handling; simplified narrative, social, outreach, deck, and one-pager copy; and
-an eleven-slide sponsor deck plus one-page A4 buyer handout.
+an eleven-slide sponsor deck plus one-page A4 buyer handout. The final member
+pass added open-request precedence, localized English/French/Arabic copy and
+dates, known document labels, and Arabic RTL verification.
 
 ### Pass 5 — Polish and verification
 
 Status: complete
 
-- member final focused suite: 37/37
-- member full suite: 1,175/1,175 across 165 files
+- member final focused regression suite: 80/80
+- member full suite: 1,179/1,179 across 165 files
 - business suite: 51/51, plus type-check and lint
 - website suite: 73/73, 11 prerendered routes, production build, and output
   verification
-- Chrome desktop and mobile checks: no horizontal overflow on checked routes
+- Chrome desktop and mobile checks: no horizontal overflow, console errors,
+  internal/readiness language, or untranslated static claim-flow copy in the
+  checked English, French, and Arabic/RTL states
 - automated WCAG A/AA checks: zero violations on the final claim surface,
   including its expanded disclosure, and on all checked public-site routes
 - sponsor deck: all eleven slides visually inspected, template-fidelity check
