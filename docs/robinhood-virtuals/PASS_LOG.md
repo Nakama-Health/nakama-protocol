@@ -126,3 +126,73 @@ Results:
 This pass therefore validates the documentation and records the unrelated
 repository-level advisory drift transparently. Mainnet implementation remains
 subject to the stricter release gates defined in this package.
+
+## Product Language and Interface Refinement — 2026-07-23
+
+The product, public website, and marketing collateral were run through the same
+five-pass method after the first complete implementation exposed too much
+internal state in user-facing surfaces.
+
+### Pass 1 — Interface and copy evidence
+
+Status: complete
+
+Reviewed the rendered claim-detail screenshots, the final member and operator
+routes, the public website, all public marketing source, and the generated deck
+and PDF. The audit identified repeated status summaries, stacked cards,
+readiness language, raw implementation terminology, an unsourced member-cost
+claim, and places where network confirmation could be mistaken for payment.
+
+### Pass 2 — Hierarchy and comprehension
+
+Status: complete
+
+Defined one member-facing hierarchy: current status, next action, secure
+document upload, compact progress, four request facts, previous submissions,
+and one disclosure for review, privacy, network, and payment details. The
+operator route was reduced to one restricted Program Controls surface. The
+public website now leads with the buyer problem and complete health-support
+offer; Robinhood Chain and Virtuals follow as supporting infrastructure.
+
+### Pass 3 — Adversarial language review
+
+Status: complete
+
+Searched the rendered and source surfaces for readiness checks, fixture and
+control-plane terminology, raw revisions and reason codes, Phase 0 language,
+unsupported `$0` claims, token-first framing, agent-operated claims, and
+network/payment conflation. The review also challenged every repeated card,
+status chip, and CTA against the single-task hierarchy.
+
+### Pass 4 — Implementation
+
+Status: complete
+
+Implemented the flat, upload-first claim page; progressive disclosure;
+plain-language Program Controls; distinct loading, disabled, error, network,
+and payment states; one-error-at-a-time intake validation; public 404/noindex
+handling; simplified narrative, social, outreach, deck, and one-pager copy; and
+an eleven-slide sponsor deck plus one-page A4 buyer handout.
+
+### Pass 5 — Polish and verification
+
+Status: complete
+
+- member final focused suite: 37/37
+- member full suite: 1,175/1,175 across 165 files
+- business suite: 51/51, plus type-check and lint
+- website suite: 73/73, 11 prerendered routes, production build, and output
+  verification
+- Chrome desktop and mobile checks: no horizontal overflow on checked routes
+- automated WCAG A/AA checks: zero violations on the final claim surface,
+  including its expanded disclosure, and on all checked public-site routes
+- sponsor deck: all eleven slides visually inspected, template-fidelity check
+  passed, and overflow test passed
+- one-pager: one unencrypted A4 page, no JavaScript, rendered and extracted
+  text inspected
+- marketing gates: 15 LinkedIn posts, 20 X posts, three threads, and five core
+  assets passed
+
+These are local implementation and QA results. They do not imply deployment,
+platform approval, a funded sponsor program, or authorization to publish or
+send outreach.

@@ -271,10 +271,24 @@ receive a reasoned decision, and appeal.
 - upload explains purpose, access, retention, and allowed files
 - progress can be saved securely without public request detail
 - evidence completeness is guidance, not a model denial
-- member sees exact timeline and clock state
+- the detail view leads with one current state and one next action; it does not
+  repeat the same request in separate header, summary, history, and protocol
+  cards
+- when information is missing, the requested-document controls appear before
+  protocol, verification, and historical detail in visual, reading, and
+  keyboard order
+- the member sees a short completed/current/next timeline and no more than four
+  essential request facts by default
+- review authority, appeals, data handling, and network references live in one
+  accessible collapsed disclosure unless they change the member's next action
+- upload receipt, human decision, network confirmation, and payment are
+  distinct states with distinct success language
+- member sees exact timeline and clock state without needing an explorer
 - denial shows private explanation and appeal deadline
 - approved settlement shows asset, amount, destination, transaction/finality,
   and safe off-ramp guidance where allowed
+- desktop and mobile layouts preserve the same action-first order and avoid
+  nested card containers
 
 ### A-008 — Member history and data rights
 

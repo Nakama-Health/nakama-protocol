@@ -28,17 +28,18 @@ relevant structure.
 
 The current recommended direction is:
 
-- **Long-term category:** autonomous mutuals, described publicly as
-  community-owned, agent-operated protection only where the legal structure
-  supports that language.
+- **Long-term category:** autonomous mutuals, described publicly only after a
+  real operating structure exists. Current customer copy says sponsor-funded,
+  human-led, agent-assisted health support.
 - **Company and network:** Nakama.
 - **First buyer:** an operator of a trusted, globally distributed community.
 - **First member use case:** portable, bounded health protection for a defined
   travel or residency window.
 - **Current product:** one sponsor-funded Genesis Protection Program for a
   defined cohort, not a general-purpose insurance DAO or a public mutual.
-- **Agent:** the Nakama Operator, a productive agent that designs, launches,
-  monitors, and reports on protection pools.
+- **Agent:** the Nakama Operator, an AI operations assistant that drafts
+  program options, organizes work, monitors deadlines, and prepares reports.
+  People approve activation, decisions, and payments.
 - **Token:** `$NAKAMA`, prepared for a conditional Virtuals launch on Robinhood
   Chain only after product, legal, technical, and platform gates pass. Its
   intended role is operator/evaluator accountability and network coordination,
@@ -58,9 +59,9 @@ contracts, partnership, token, reserve, or legal permissions are live.
 
 Nakama must maintain two independent scoreboards.
 
-The **product scoreboard** measures paid design partners, funded pools,
-activated members, renewals, claims handling, reserve adequacy, and operating
-margin. This is the product-market-fit scoreboard.
+The **product scoreboard** measures paid design partners, funded programs,
+activated members, renewals, support-request handling, budget adequacy, and
+operating margin. This is the product-market-fit scoreboard.
 
 The **token scoreboard** measures holder distribution, liquidity, trading
 volume, creator-fee receipts, and Automated Capital Formation milestones. This
@@ -152,14 +153,16 @@ the implementation rather than the roadmap.
 The launch succeeds when Nakama proves all of the following in sequence:
 
 1. A qualified community operator pays for a Protection Design Sprint.
-2. The community and Nakama agree on bounded, reviewable terms.
+2. The community and Nakama agree who the program is for, what it may support,
+   its dates and limits, and who is responsible.
 3. The complete sponsor-funded program budget is posted in a segregated vault
    before activation.
 4. Real eligible members enroll in the sponsor-funded program.
 5. The Nakama Operator reduces setup, administration, or review work enough to
    create measurable economic value.
-6. Any claim is handled according to published terms, with private evidence and
-   an auditable outcome.
+6. Any support request is handled according to published terms, with private
+   documents, a human decision, an appeal path, and a payment record that does
+   not rely on network confirmation alone.
 7. The first community renews, expands, or refers another qualified operator.
 8. If its independent launch gate passes, `$NAKAMA` develops utility from real
    operator, evaluator, and agent activity rather than from a narrative-only

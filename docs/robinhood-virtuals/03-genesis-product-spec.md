@@ -228,6 +228,60 @@ role and legal basis.
   correlated without a privacy review
 - payout status and appeal deadline visible without explorer use
 
+### Support-request detail hierarchy
+
+The detail screen is a member task surface, not a protocol console. It should
+answer three questions in order:
+
+1. What is happening with my request?
+2. What, if anything, do I need to do now?
+3. What happens after I do it?
+
+The default view uses one page hierarchy rather than a stack of independent
+cards:
+
+- a compact request header with the current state, one plain-language sentence,
+  and the relevant deadline
+- one primary action area immediately below it when member input is required
+- a short progress view showing the completed, current, and next steps
+- four or fewer essential facts: requested amount, program, support limit, and
+  last update
+- a contextual support link near the primary action
+- one collapsed `Review, privacy, and network details` disclosure for review
+  authority, appeals, data handling, and technical references
+
+Do not repeat the request summary, state, or next action in separate cards.
+Do not place `New request`, program navigation, readiness checks, preview
+limitations, contract configuration, testnet warnings, L1 finality, or raw
+verification fields in the primary member flow. A member-facing warning appears
+only when it changes what the member should do.
+
+Network confirmation and payment are separate states. A network commitment,
+transaction reference, or finality signal cannot use paid, settled, or success
+language unless an approved payment has its own verified transfer record.
+
+The layout may use two columns on a wide screen when the primary action remains
+first in reading and keyboard order. It becomes a single column on smaller
+screens. Every disclosure, upload control, status, error, and success message
+must remain understandable without color and operable by keyboard.
+
+### Support-request interaction states
+
+| State | Primary message | Primary action | Secondary information |
+| --- | --- | --- | --- |
+| Submitted | We received your request | None | Expected review timing |
+| More information needed | We need specific documents to continue | Add requested documents | Due date and why each item is needed |
+| Under review | A reviewer is checking your request | None | Last update and expected next step |
+| Approved, payment pending | Your support was approved | None | Approved amount and payment timing |
+| Paid | Payment sent | View payment details | Asset, amount, date, and verified reference |
+| Declined | Your request was not approved | Review the decision | Reason, terms reference, and appeal deadline |
+| Appeal open | You can ask for a new review | Start appeal | Deadline and independent-review explanation |
+| Offline or delayed | We cannot update this request right now | Try again or contact support | Last confirmed state, without implying a new decision |
+
+Success after an upload means the documents were received. It does not mean the
+request was approved or paid. The confirmation should state what happens next
+and when the member can expect another update.
+
 ## Activation Gates
 
 The program remains `DRAFT` until every required gate is true:

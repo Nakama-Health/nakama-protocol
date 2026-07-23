@@ -2,134 +2,141 @@
 
 ## Narrative Doctrine
 
-Nakama has one vision and several audience-specific explanations. The message
-must become simpler as it moves outward:
+Nakama has one product story and several audience-specific levels of detail.
+The public message starts with the person who needs help and the organizer who
+is responsible for helping them:
 
-- customers buy member protection and operating confidence
-- partners buy a credible workflow and integration
-- builders see programmable primitives
-- the Virtuals ecosystem sees a productive agent and tokenized AI-native
-  business
-- investors see a category and repeatable economic network
+- cohort organizers buy a clear, funded way to support members
+- members need to know what help is available, what to do, and who decides
+- partners need a workable process and clear responsibilities
+- builders can inspect the protocol and its safety boundaries
+- the Virtuals ecosystem can evaluate useful agent work
+- investors can evaluate the wedge, repeatability, and longer-term network
 
-AI, blockchain, RWA, and tokenomics explain how the system works. They are not
-the customer headline.
+AI, Robinhood Chain, Virtuals, stablecoins, RWA structures, and tokenomics are
+supporting architecture. They do not belong in the first explanation of the
+customer problem.
 
 ## Narrative Stack
 
-### Vision
+### Public vision
 
-> Build the infrastructure for community-owned protection.
+> Give every trusted community a reliable way to care for its people.
 
-### Long-term category
+### Current company
 
-> Nakama turns trusted communities into autonomous mutuals.
+> Nakama is building sponsor-funded health support for international cohorts.
 
-### Company
+### Current offer
 
-> Nakama gives membership organizations a transparent way to fund and
-> administer protection for their members.
+> A cohort organizer defines the support, sets aside the full budget, and gives
+> members a private way to request help. A named person makes the final decision
+> and approves any payment.
 
-### Beachhead
+### Agent
 
-> Nakama runs bounded health-protection programs for paid international
-> cohorts, with verified funding, clear terms, private evidence, and accountable
-> decisions.
+> The Nakama Operator prepares program options, organizes documents, monitors
+> deadlines, and drafts reports. It assists; people decide and approve payments.
 
 ### Technology
 
-> A productive agent prepares and operates each program; Robinhood Chain records
-> reserve and settlement truth; Virtuals provides agent tokenization and agent
-> commerce.
+> Nakama is built for Robinhood Chain and is exploring Virtuals ACP. Neither
+> integration is represented as live, approved, endorsed, or promoted until its
+> own evidence is published.
 
-### Token
+### Long-term category
 
-> `$NAKAMA` coordinates the operators, evaluators, agents, and contributors who
-> make the network useful. It does not fund member benefits or grant access to
-> medical data.
+> If the first product works, the same infrastructure could help independently
+> operated communities build transparent protection networks. "Autonomous
+> mutuals" is the long-term thesis, not the current product claim.
+
+### Possible future token
+
+> If a token is launched, `$NAKAMA` could coordinate qualified operators,
+> evaluators, agents, and contributors. It would not fund member support, unlock
+> medical data, decide individual requests, or replace the stable-value program
+> budget.
 
 ## Recommended Taglines
 
 Primary customer-facing line:
 
-> Protection built for your community.
+> A clear way to support members when health problems happen abroad.
 
 Category line:
 
-> Every community deserves a safety net.
+> Give your cohort a health safety net before someone needs it.
 
 Crypto/agent line:
 
-> Agent-operated protection with verifiable reserves.
+> Useful agent work inside a human-led health support program.
 
 Protocol line:
 
-> The coordination and settlement layer for community protection.
+> Public funding and payment records. Private health documents.
 
 Avoid "insurance for everyone," "AI insurer," "health RWA," "onchain hospital
-coverage," and "Lloyd's onchain" as launch taglines. They create claims the
-first product cannot support.
+coverage," "agent-operated protection," and "Lloyd's onchain" as launch
+taglines. They create claims the first product cannot support or make software
+sound responsible for decisions that belong to people.
 
 ## One-Liners
 
 ### Fifteen words
 
-Nakama helps communities fund and operate clear member protection with agents
-and verifiable reserves.
+Nakama helps international cohort organizers plan and fund clear health support
+for their members.
 
 ### Customer
 
-Nakama gives global membership organizations one system to define, fund, run,
-and report a bounded health-support program for their members.
+Nakama helps international cohort organizers decide what support to offer, set
+aside the budget, guide members through requests, and report what happened.
 
 ### Virtuals
 
-Nakama is a productive agent and protocol that designs and operates community
-protection programs, earning from real setup, administration, and verification
-work.
+The Nakama Operator is an AI operations assistant for health-support programs.
+It is being prepared for public, non-medical Virtuals marketplace jobs; no live
+listing or paid job is represented yet.
 
 ### Investor
 
-Nakama is building the operating system for autonomous mutuals, beginning with
-sponsor-funded health protection for paid international cohorts.
+Nakama is starting with sponsor-funded health support for paid international
+cohorts and could grow into infrastructure for independently operated community
+protection networks.
 
 ## Fifty-Word Description
 
-Nakama helps trusted communities create transparent member-protection programs.
-Its agent turns a cohort, budget, and approved template into clear terms,
-private enrollment and evidence workflows, reserve monitoring, accountable
-decisions, and auditable settlement. Health protection for international
-cohorts is the first market; autonomous mutuals are the long-term network.
+Nakama is building a clearer way for international cohort organizers to support
+members who face urgent health costs abroad. The organizer defines the support
+and funds the budget before launch. Members use a private request process, a
+named person decides, and the software helps the team operate and report the
+program.
 
 ## 150-Word Description
 
-Communities can organize globally, hold treasuries, and coordinate work, but
-protecting members still requires fragmented insurance, claims, payment, and
-administrative systems. Nakama gives a responsible community operator one way
-to configure, fund, and run a bounded member-protection program. A productive
-agent models the cohort, prepares approved terms, coordinates onboarding,
-monitors the program budget, checks evidence completeness, routes accountable
-decisions, and produces a post-program report. Robinhood Chain records the
-minimum public economic truth—terms commitments, funding, authority,
-obligations, and settlement—while sensitive identity and medical evidence stay
-encrypted offchain. Nakama begins with sponsor-funded acute health protection
-for paid international cohorts. Over time, qualified operators, evaluators,
-capital partners, and specialist agents can turn the shared infrastructure into
-a network of independently operated autonomous mutuals. `$NAKAMA` coordinates
-that network; it is not a claims reserve, health entitlement, or vote on an
-individual member's case.
+International cohorts often rely on a mix of travel insurance, personal
+payment, reimbursements, fundraising, and improvised help when a member needs
+care abroad. Nakama is building one operating path for the cohort organizer:
+define what may be supported, set aside the full budget, explain the terms,
+receive member requests privately, assign a human reviewer, pay approved
+support, and close the program with a clear report. The Nakama Operator helps
+prepare options, organize documents, monitor deadlines, and draft reports. It
+cannot make the final decision or move the program's money. Nakama is built for
+Robinhood Chain so funding and payment records can be checked without
+publishing health documents. It is also exploring public, non-medical agent
+jobs through Virtuals ACP. The current work is a local implementation
+candidate; it is not a live program, deployment, marketplace listing, or token.
 
 ## Founder Narrative
 
 The founder story should be factual and compact:
 
 > I am a doctor and product builder who has spent two years working on the gap
-> between health software and real financial protection. Communities already
-> organize globally, but when a member faces a health emergency the system
-> falls back to fragmented insurance, reimbursement, or crowdfunding. Nakama is
-> the infrastructure I wanted those communities to have: clear terms, visible
-> funding, private evidence, accountable decisions, and agents that make the
-> operation affordable.
+> between health software and real financial support. International communities
+> organize work and travel well, but when a member needs urgent care the
+> response often becomes personal payment, reimbursement, fundraising, and
+> improvised help. I am building Nakama so organizers can plan that support
+> before it is needed and members know what happens next.
 
 Do not turn persistence into traction. Follow the story immediately with a
 working demonstration, paid design partner, or operating metric.
@@ -138,13 +145,13 @@ working demonstration, paid design partner, or operating metric.
 
 | Audience | Lead with | Proof required | Do not lead with |
 | --- | --- | --- | --- |
-| Community operator | Member safety, fixed budget, simple operation, report | Program prototype, sample terms, implementation plan, references | Token price or decentralization |
-| Member | Clear benefit, limits, privacy, decision and appeal process | Plain terms, visible funding, responsive support | Yield, staking, governance |
-| Virtuals community | Productive agent, paid jobs, public build, founder accountability | Live agent outputs, ACP transactions, roadmap delivery | Unsupported health or partnership claims |
-| Robinhood ecosystem | EVM-native financial product, account abstraction, reserve and settlement use case | Testnet deployment, verified contracts, real wallet UX | Brokerage distribution implication |
+| Cohort organizer | Member safety, known budget, simple operation, useful report | Program prototype, sample terms, design process, references | Token price or protocol architecture |
+| Member | Available support, limits, privacy, next step, decision and appeal process | Plain terms, funded budget, responsive support | Yield, staking, governance, chain status |
+| Virtuals community | Useful agent work, founder accountability, current build state | Reviewed agent outputs, accepted jobs, evaluations, roadmap delivery | Unsupported health, listing, or partnership claims |
+| Robinhood ecosystem | A real financial workflow being built for the chain | Testnet deployment, verified contracts, usable account flow | Brokerage distribution implication |
 | Investor | Category, wedge, buyer, repeatability, network effects | Paid design partners, funded cohort, renewal, margins | Market cap as PMF |
 | Operator/evaluator | Paid work, objective scope, reputation, dispute protections | Job schemas, service levels, stake and appeal rules | Vague token rewards |
-| Legal/capital partner | Bounded product, authority, segregation, records | Term sheet, data map, contract controls, operating roles | "Permissionless insurance" |
+| Legal/capital partner | Exact dates, budget, limits, responsibilities, and records | Term sheet, data map, contract controls, operating roles | "Permissionless insurance" |
 
 ## Landing Page Information Architecture
 
@@ -152,59 +159,63 @@ working demonstration, paid design partner, or operating metric.
 
 Headline:
 
-> Protection built for your community.
+> A clearer way to support members when health problems happen abroad.
 
 Subhead:
 
-> Nakama helps membership organizations fund and operate clear health-support
-> programs with private member workflows, accountable decisions, and
-> verifiable program budgets.
+> Plan the support, set aside the budget, give members a private request path,
+> and keep final decisions with named people.
 
-Primary CTA: `Design a program`
-Secondary CTA: `See how the system works`
+Primary CTA: `See if your cohort fits`
+Secondary CTA: `See how the program works`
 
 ### Problem
 
-Communities already spend money and staff time handling member emergencies.
-The process starts too late, terms are unclear, evidence moves through insecure
-channels, and nobody can see what funding is actually available.
+Cohort organizers already spend money and staff time helping members through
+health incidents. The process often starts after the problem, the budget is
+unclear, documents move through chat and email, and nobody owns the whole
+journey.
 
 ### Product loop
 
 Show five stages:
 
-1. define the cohort
-2. approve terms and budget
-3. fund and activate
-4. support members and review cases
-5. settle and report
+1. agree who the program is for and what it may support
+2. approve the terms and set aside the full budget
+3. give members a private way to request help
+4. have a named person review each request and appeal
+5. pay approved support and report the result
 
 ### Agent proof
 
-Provide an interactive example where the Nakama Operator converts a cohort and
-budget into a scenario with visible assumptions. Label it a proposal, not an
-active program.
+Show one example where the Nakama Operator turns a cohort and budget into a
+draft program for human review. Label it sample work, not a live program.
 
 ### Trust
 
-Explain:
+Explain in plain language:
 
-- what is publicly verifiable
+- what is available to members
+- where the program budget is held
 - what stays private
-- who makes decisions
-- what the token cannot control
-- how activation is gated
+- who makes decisions and handles appeals
+- how an approved payment is confirmed
+
+Put chain details, token boundaries, release gates, and machine-readable records
+behind a technical-details link. Do not render an internal readiness checklist
+as customer content.
 
 ### Buyer CTA
 
-Ask for a concrete design-partner application:
+Ask only for what is needed to decide whether a conversation is useful:
 
-- organization and legal entity
-- member/cohort count
-- dates and locations
-- current incident/support experience
-- existing budget owner
-- decision timeline
+- organization and role
+- approximate cohort size
+- next cohort date
+- how health incidents are handled today
+- whether a budget owner is involved
+
+Do not ask for member or health information.
 
 ## Ten-Slide Deck
 
@@ -212,19 +223,19 @@ Ask for a concrete design-partner application:
    a reliable member safety net.
 2. **The buyer:** paid international cohorts and membership organizations
    already handling emergencies.
-3. **The product:** one bounded sponsor-funded program with verified budget,
-   clear terms, private evidence, and accountable decisions.
+3. **The product:** one sponsor-funded program with clear terms, a separate
+   budget, private documents, and named human reviewers.
 4. **The magic moment:** the Nakama Operator produces an actionable program
    proposal from real cohort inputs.
-5. **The full loop:** enrollment through settlement and report.
+5. **The full loop:** member request through approved payment and report.
 6. **Why now:** agents, stablecoins, EVM finance infrastructure, and persistent
    online communities.
 7. **Business model:** design, launch, administration, agent services, and later
    network fees.
 8. **Network expansion:** qualified operators, evaluators, agents, and capital
    turn programs into autonomous mutuals.
-9. **Robinhood + Virtuals:** native settlement and agent/token distribution,
-   with explicit limitations.
+9. **Robinhood + Virtuals:** why the product is being built for Robinhood Chain
+   and why public agent jobs are being explored through Virtuals.
 10. **Ask and proof plan:** design partners, program budget, technical and legal
     milestones, and the next 90 days.
 
@@ -235,30 +246,29 @@ Ask for a concrete design-partner application:
 > globally, but when a member faces a health emergency, the system still falls
 > back to opaque insurance or last-minute crowdfunding.
 >
-> Nakama gives those communities a better operating system. Our agent turns a
-> real cohort and budget into clear program terms, private member workflows,
-> visible funding, accountable decisions, and auditable payouts.
+> Nakama gives cohort organizers a clearer process. They decide what support to
+> offer, set aside the budget, and give members a private way to request help.
+> Our software organizes the work; named people decide and approve payments.
 >
-> We are starting with bounded health-protection programs for paid international
-> cohorts. The long-term network lets qualified communities, agents,
-> evaluators, and capital providers create autonomous mutuals.
+> We are starting with sponsor-funded health support for paid international
+> cohorts. We are building it for Robinhood Chain and exploring public,
+> non-medical agent jobs through Virtuals.
 >
-> `$NAKAMA` coordinates the people and agents operating that network. It never
-> replaces stablecoin reserves or gives token holders access to medical data.
-> We are launching to build a real protection network in public, measured by
-> funded programs and members served—not by promises.
+> There is no live program, deployment, marketplace listing, or token today.
+> The next proof is simple: one organizer pays to design a useful program and
+> chooses to fund it.
 
 Do not record this script until every present-tense statement is supported by a
 working surface or changed to future tense.
 
 ## Launch Announcement Template
 
-> Nakama is building infrastructure for community-owned protection.
+> Nakama is building a clearer way for international cohort organizers to
+> support members when urgent health costs happen abroad.
 >
-> We are starting with a productive agent that helps international membership
-> organizations design and operate bounded health-support programs: clear
-> terms, verified budgets, private evidence, accountable decisions, and
-> auditable settlement.
+> The organizer defines what may be supported and sets aside the budget before
+> launch. Members use a private request process. The Nakama Operator helps
+> organize the work, while named people make decisions and approve payments.
 >
 > After its independent product, legal, platform, technical, and treasury gates
 > passed, `$NAKAMA` launched through Virtuals on Robinhood Chain to coordinate
@@ -270,9 +280,10 @@ working surface or changed to future tense.
 > commitments, security milestones, and program outcomes. Token metrics will be
 > reported separately.
 
-Use this announcement only after the launch transaction and all resulting
+Use the token paragraph only after the launch transaction and all resulting
 addresses, allocations, and controls are independently verified. Before that,
-replace the token paragraph with the exact current gate status.
+replace it with one plain sentence describing the actual build stage. Do not
+paste an internal release checklist into the announcement.
 
 ## Content Pillars
 
@@ -312,7 +323,7 @@ Never publish:
   written authorization
 - "fully backed" without defining the exact funded obligation and reserve
 - "insurance" where the approved structure and jurisdiction do not support it
-- "AI-approved claims" or "instant claims" without the actual bounded policy
+- "AI-approved claims" or "instant claims" without approved program terms
 - "RWA" without naming the legal asset, issuer, custody, valuation, and
   redemption path
 - user, revenue, sponsor, or reserve numbers without an evidence owner and date
