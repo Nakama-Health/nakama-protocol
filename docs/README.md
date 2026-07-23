@@ -25,9 +25,23 @@ This path is intentionally launch-truth-first: `Travel 30` is the primary reserv
 
 ## Sections
 
+### Robinhood Chain and Virtuals target plan
+
+- [Robinhood and Virtuals strategy and implementation index](./robinhood-virtuals/README.md) — five-pass, product-first plan for a sponsor-funded Genesis Protection Program, Robinhood-native protocol and agent, conditional Virtuals token launch, GTM, safety gates, and ninety-day backlog
+
+The Phase 0 contract candidate is now implemented and locally tested; see
+[Robinhood Phase 0 Protocol Implementation](./architecture/robinhood-phase0-protocol.md).
+It is still not a live product, customer, legal status, deployment, token,
+Robinhood relationship, or Virtuals approval. The current public protocol
+surface remains the source of truth until a release packet and verified
+deployment explicitly supersede it.
+
 ### Architecture
 
 - [Repository Layout](./architecture/repository-layout.md)
+- [Ethereum Mainnet Protocol Vertical Slice](./architecture/ethereum-mainnet-protocol.md) — immutable contract boundary, reserve accounting, claim finality, integration, and release gate
+- [Robinhood Phase 0 Protocol Implementation](./architecture/robinhood-phase0-protocol.md) — isolated sponsor-funded USDG suite, canonical ABI, local evidence, and fail-closed deployment boundary
+- [Robinhood Phase 0 Incident Exercises](./operations/robinhood-phase0-incident-exercises.md) — local lost-signer, agent, USDG, contract-bug, and outage containment evidence with explicit production boundaries
 - [Protocol Vision and Capability Narrative](./architecture/protocol-vision-and-capability-narrative.md)
 - [Solana Program Architecture](./architecture/solana-program-architecture.md)
 - [Solana Instruction Map](./architecture/solana-instruction-map.md)
@@ -68,6 +82,7 @@ This path is intentionally launch-truth-first: `Travel 30` is the primary reserv
 
 ### Security
 
+- [Ethereum CROPS and Walkaway Review](./security/ethereum-crops-walkaway.md) — mandate alignment, trust boundaries, honest decentralization limits, and mainnet release conditions
 - [Mainnet Privileged-Role Controls](./security/mainnet-privileged-role-controls.md) — role matrix, multisig requirement, break-glass exception, rotation, incident recovery
 - [Pre-Mainnet Pen-Test (2026-04-27)](./security/pre-mainnet-pen-test-2026-04-27.md)
 
@@ -94,6 +109,8 @@ This path is intentionally launch-truth-first: `Travel 30` is the primary reserv
 - Use [Nakama Docs](https://docs.nakama.health/docs) when you want the polished public overview, product story, and external documentation hub rather than repo-specific workflow details.
 - Use [Why Nakama](https://docs.nakama.health/docs/thesis/why-nakama) when you need the clearest public statement of the protocol’s purpose and long-range destination.
 - Use [Protocol Vision and Capability Narrative](./architecture/protocol-vision-and-capability-narrative.md) when you need the repo-local explanation of the trimmed protocol vision, current accounts, current functions, and community-owned coverage narrative.
+- Use [Ethereum Mainnet Protocol Vertical Slice](./architecture/ethereum-mainnet-protocol.md) for the Solidity contract graph, reserve ledger, claim lifecycle, canonical ABI, and immutable deployment boundary.
+- Use [Ethereum CROPS and Walkaway Review](./security/ethereum-crops-walkaway.md) when evaluating censorship resistance, open-source reproducibility, privacy, security, or the limits of the current decentralization claim.
 - Start with [Repository Layout](./architecture/repository-layout.md) if you are new to the repo and need the internal file map.
 - Use [Solana Program Architecture](./architecture/solana-program-architecture.md) to understand the on-chain program layout and reviewer read order.
 - Use [Solana Instruction Map](./architecture/solana-instruction-map.md) when tracing an instruction from entrypoint to handler, accounts, and helpers.
@@ -109,6 +126,7 @@ This path is intentionally launch-truth-first: `Travel 30` is the primary reserv
 - Use [Public Release Gate](./operations/public-release-gate.md) for the repo-only verification baseline and release-candidate sign-off workflow.
 
 For directory-specific guidance, also see:
+
 - [../e2e/README.md](../e2e/README.md)
 - [../frontend/README.md](../frontend/README.md)
 - [../scripts/README.md](../scripts/README.md)

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 3,
+  "status": "not-approved",
+  "sourceCommit": null,
+  "expectedDeployer": null,
+  "auditReportSha256": null,
+  "releaseApprovalSha256": null,
+  "protocolArtifactSha256": null,
+  "contracts": {
+    "NakamaProtocolFactory": {
+      "creationBytecodeHash": null,
+      "runtimeBytecodeTemplateHash": null
+    },
+    "NakamaCoverageProtocol": {
+      "creationBytecodeHash": null,
+      "runtimeBytecodeTemplateHash": null
+    },
+    "NakamaPolicyRegistry": {
+      "creationBytecodeHash": null,
+      "runtimeBytecodeTemplateHash": null
+    },
+    "ReserveVault": {
+      "creationBytecodeHash": null,
+      "runtimeBytecodeTemplateHash": null
+    }
+  },
+  "independentAuditCompleted": false,
+  "releaseApproved": false
+}

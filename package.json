@@ -1,7 +1,7 @@
 {
   "name": "nakama-protocol",
   "version": "0.3.1",
-  "description": "Public Nakama Solana protocol workspace with the on-chain program, frontend console, docs, and verification tooling.",
+  "description": "Public Nakama protocol workspace for the Robinhood-native sponsor-funded Phase 0 implementation, with preserved Solana and Ethereum candidates.",
   "author": "OMEGAX HEALTH FZCO",
   "contributors": [
     "Marino Sabijan, MD"
@@ -18,6 +18,19 @@
   },
   "type": "module",
   "scripts": {
+    "ethereum:build": "hardhat build --build-profile production",
+    "ethereum:test": "hardhat test mocha --build-profile production",
+    "ethereum:contract": "npm run ethereum:build && node scripts/generate_ethereum_contract.mjs",
+    "ethereum:contract:check": "npm run ethereum:build && node scripts/generate_ethereum_contract.mjs --check",
+    "ethereum:manifest:promote": "npm run ethereum:contract:check && node scripts/promote_ethereum_mainnet_manifest.mjs",
+    "ethereum:deploy:preflight": "npm run ethereum:contract:check && node scripts/ethereum_mainnet_preflight.mjs",
+    "ethereum:deploy:mainnet": "npm run ethereum:contract:check && hardhat run scripts/deploy_ethereum_mainnet.ts --network mainnet --build-profile production",
+    "robinhood:build": "hardhat build --build-profile production",
+    "robinhood:test": "hardhat test mocha test/ethereum/robinhood/*.ts --build-profile production",
+    "robinhood:contract": "npm run robinhood:build && node scripts/generate_robinhood_contract.mjs",
+    "robinhood:contract:check": "npm run robinhood:build && node scripts/generate_robinhood_contract.mjs --check",
+    "robinhood:deploy:mainnet:plan": "npm run robinhood:contract:check && node scripts/plan_robinhood_mainnet.mjs",
+    "robinhood:deploy:testnet": "npm run robinhood:contract:check && hardhat run scripts/deploy_robinhood_testnet.ts --network robinhoodTestnet --build-profile production",
     "anchor:build": "anchor build",
     "anchor:build:checked": "node scripts/anchor_build_with_stack_gate.mjs",
     "anchor:test": "node scripts/anchor_test_with_stack_gate.mjs",
@@ -76,7 +89,7 @@
     "license:audit": "node scripts/check_dependency_licenses.mjs",
     "security:audit:deps": "node scripts/check_dependency_advisories.mjs",
     "security:sbom": "node scripts/generate_sbom.mjs",
-    "ci:public": "npm run rust:fmt:check && npm run rust:test && npm run rust:lint && npm run quasar:check && npm run idl:freshness:check && npm run protocol:contract:check && npm run test:node && npm run frontend:build && npm run semantic:readiness:check && npm run public:hygiene:check",
+    "ci:public": "npm run rust:fmt:check && npm run rust:test && npm run rust:lint && npm run quasar:check && npm run idl:freshness:check && npm run protocol:contract:check && npm run robinhood:contract:check && npm run robinhood:test && npm run test:node && npm run frontend:build && npm run semantic:readiness:check && npm run public:hygiene:check",
     "verify:public": "npm run ci:public && npm run license:audit && npm run security:audit:deps && npm run security:sbom",
     "doctor": "node scripts/doctor.mjs",
     "verify": "npm run doctor && npm run ci:public"
@@ -89,7 +102,11 @@
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.7",
+    "@openzeppelin/contracts": "^5.6.1",
     "@types/node": "^20.19.37",
+    "ethers": "^6.17.0",
+    "hardhat": "^3.10.0",
     "license-checker": "25.0.1",
     "playwright": "^1.58.2",
     "tsx": "^4.19.2"

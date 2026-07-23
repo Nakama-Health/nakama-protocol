@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nakama.health/schemas/ethereum-mainnet-deployment-v3.json",
+  "title": "Nakama Ethereum mainnet published factory deployment manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "chainId",
+    "caip2",
+    "entryContract",
+    "deployer",
+    "deploymentTransaction",
+    "deploymentBlock",
+    "deploymentBlockHash",
+    "confirmations",
+    "sourceCommit",
+    "protocolArtifactSha256",
+    "liveContracts",
+    "contractTemplates",
+    "verified",
+    "auditStatus",
+    "auditReportSha256",
+    "releaseApprovalSha256",
+    "verificationEvidenceSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 3 },
+    "status": { "const": "deployed" },
+    "chainId": { "const": 1 },
+    "caip2": { "const": "eip155:1" },
+    "entryContract": { "const": "NakamaProtocolFactory" },
+    "deployer": { "$ref": "#/$defs/address" },
+    "deploymentTransaction": { "$ref": "#/$defs/bytes32" },
+    "deploymentBlock": { "type": "integer", "minimum": 1 },
+    "deploymentBlockHash": { "$ref": "#/$defs/bytes32" },
+    "confirmations": { "type": "integer", "minimum": 12 },
+    "sourceCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "protocolArtifactSha256": { "$ref": "#/$defs/sha256" },
+    "liveContracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["factory", "policyRegistry", "protocol"],
+      "properties": {
+        "factory": {
+          "allOf": [
+            { "$ref": "#/$defs/liveContract" },
+            {
+              "properties": {
+                "contractName": { "const": "NakamaProtocolFactory" },
+                "deploymentKind": { "const": "transaction-create" },
+                "factoryNonce": { "type": "null" },
+                "abiArtifact": {
+                  "const": "contracts/ethereum/NakamaProtocolFactory.abi.json"
+                }
+              }
+            }
+          ]
+        },
+        "policyRegistry": {
+          "allOf": [
+            { "$ref": "#/$defs/liveContract" },
+            {
+              "properties": {
+                "contractName": { "const": "NakamaPolicyRegistry" },
+                "deploymentKind": { "const": "factory-create" },
+                "factoryNonce": { "const": 1 },
+                "abiArtifact": {
+                  "const": "contracts/ethereum/NakamaPolicyRegistry.abi.json"
+                }
+              }
+            }
+          ]
+        },
+        "protocol": {
+          "allOf": [
+            { "$ref": "#/$defs/liveContract" },
+            {
+              "properties": {
+                "contractName": { "const": "NakamaCoverageProtocol" },
+                "deploymentKind": { "const": "factory-create" },
+                "factoryNonce": { "const": 2 },
+                "abiArtifact": {
+                  "const": "contracts/ethereum/NakamaCoverageProtocol.abi.json"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "contractTemplates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reserveVault"],
+      "properties": {
+        "reserveVault": { "$ref": "#/$defs/reserveVaultTemplate" }
+      }
+    },
+    "verified": { "const": true },
+    "auditStatus": { "const": "audited" },
+    "auditReportSha256": { "$ref": "#/$defs/sha256" },
+    "releaseApprovalSha256": { "$ref": "#/$defs/sha256" },
+    "verificationEvidenceSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "bytes32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "immutableReferences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["start", "length"],
+        "properties": {
+          "start": { "type": "integer", "minimum": 0 },
+          "length": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "sourceVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verificationProvider",
+        "verificationUrl",
+        "sourceVerifiedAt",
+        "sourcifyMatchId",
+        "creationMatch",
+        "runtimeMatch"
+      ],
+      "properties": {
+        "verificationProvider": { "const": "sourcify-v2" },
+        "verificationUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://sourcify\\.dev/server/v2/contract/1/0x[0-9a-fA-F]{40}$"
+        },
+        "sourceVerifiedAt": { "type": "string", "format": "date-time" },
+        "sourcifyMatchId": { "type": "string", "minLength": 1 },
+        "creationMatch": { "const": "exact_match" },
+        "runtimeMatch": { "const": "exact_match" }
+      }
+    },
+    "liveContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractName",
+        "address",
+        "deploymentKind",
+        "factoryNonce",
+        "creationBytecodeHash",
+        "creationBytecodeBytes",
+        "runtimeBytecodeHash",
+        "runtimeBytecodeTemplateHash",
+        "runtimeBytecodeBytes",
+        "immutableReferences",
+        "abiArtifact",
+        "abiSha256",
+        "verification"
+      ],
+      "properties": {
+        "contractName": { "type": "string" },
+        "address": { "$ref": "#/$defs/address" },
+        "deploymentKind": { "type": "string" },
+        "factoryNonce": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 2
+        },
+        "creationBytecodeHash": { "$ref": "#/$defs/bytes32" },
+        "creationBytecodeBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 49152
+        },
+        "runtimeBytecodeHash": { "$ref": "#/$defs/bytes32" },
+        "runtimeBytecodeTemplateHash": { "$ref": "#/$defs/bytes32" },
+        "runtimeBytecodeBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 24576
+        },
+        "immutableReferences": { "$ref": "#/$defs/immutableReferences" },
+        "abiArtifact": { "type": "string" },
+        "abiSha256": { "$ref": "#/$defs/sha256" },
+        "verification": { "$ref": "#/$defs/sourceVerification" }
+      }
+    },
+    "reserveVaultTemplate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractName",
+        "deploymentKind",
+        "saltDerivation",
+        "creationBytecodeHash",
+        "creationBytecodeBytes",
+        "runtimeBytecodeTemplateHash",
+        "runtimeBytecodeBytes",
+        "immutableReferences",
+        "abiArtifact",
+        "abiSha256"
+      ],
+      "properties": {
+        "contractName": { "const": "ReserveVault" },
+        "deploymentKind": { "const": "core-create2" },
+        "saltDerivation": {
+          "const": "keccak256(abi.encode(domainId,assetToken))"
+        },
+        "creationBytecodeHash": { "$ref": "#/$defs/bytes32" },
+        "creationBytecodeBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 49152
+        },
+        "runtimeBytecodeTemplateHash": { "$ref": "#/$defs/bytes32" },
+        "runtimeBytecodeBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 24576
+        },
+        "immutableReferences": { "$ref": "#/$defs/immutableReferences" },
+        "abiArtifact": {
+          "const": "contracts/ethereum/ReserveVault.abi.json"
+        },
+        "abiSha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

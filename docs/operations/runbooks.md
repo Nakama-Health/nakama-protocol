@@ -6,21 +6,22 @@ This page does not replace the individual runbooks — they remain the canonical
 
 ## Role × environment quickstart
 
-| Role | Environment | Entry point | Runbook |
-|------|-------------|-------------|---------|
-| Reviewer / contributor | Local working tree | `make verify` (or `npm run verify:public`) | [public-release-gate.md](./public-release-gate.md) |
-| Reviewer / contributor | Local working tree, protocol-touching change | `npm run test:e2e:localnet` | [public-release-gate.md](./public-release-gate.md) |
-| Release manager | Public-tag / mainnet promotion | fill in evidence template before promoting | [release-candidate-evidence-template.md](./release-candidate-evidence-template.md) |
-| Devnet operator | Shared devnet beta | `npm run devnet:beta:deploy` → `npm run protocol:bootstrap:devnet-live` → `npm run devnet:frontend:bootstrap` | [devnet-beta-runbook.md](./devnet-beta-runbook.md) |
-| Devnet operator | Devnet observability sweep | `npm run devnet:beta:observe` | [devnet-beta-runbook.md](./devnet-beta-runbook.md) |
-| Devnet operator | Drawer simulation (no state mutation) | `npm run devnet:operator:drawer:sim` | [devnet-beta-runbook.md](./devnet-beta-runbook.md#operator-drawer-simulation) |
-| Mainnet operator | Genesis live bootstrap (preview) | `npm run protocol:bootstrap:genesis-live -- --plan` | [genesis-live-bootstrap.md](./genesis-live-bootstrap.md) |
-| Mainnet operator | Genesis live bootstrap (apply) | `npm run protocol:bootstrap:genesis-live` (with `OMEGAX_REQUIRE_DISTINCT_OPERATOR_KEYS=1`) | [genesis-live-bootstrap.md](./genesis-live-bootstrap.md) |
-| Mainnet operator / frontend reviewer | Phase 0 surface gating | confirm launch profile, disabled previews, and reservation visibility | [phase0-mainnet-surface-gating.md](./phase0-mainnet-surface-gating.md) |
-| Launch operator | Founder reservation mode | configure Squads vault, route public CTAs, reconcile pending reservations | [founder-reservation-runbook.md](./founder-reservation-runbook.md) |
-| Hosting operator | Firebase App Hosting cutover | follow the cutover checklist | [firebase-app-hosting-cutover.md](./firebase-app-hosting-cutover.md) |
-| Release manager | Public-tag promotion | walk the gate, then publish notes | [public-release-gate.md](./public-release-gate.md) + [release-v0.3.1.md](./release-v0.3.1.md) |
-| Anyone touching the on-chain surface | Local | `npm run anchor:idl` then `npm run protocol:contract` then `npm run idl:freshness:check` | [public-release-gate.md](./public-release-gate.md#generated-artifacts) |
+| Role                                 | Environment                                  | Entry point                                                                                                   | Runbook                                                                                       |
+| ------------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Reviewer / contributor               | Local working tree                           | `make verify` (or `npm run verify:public`)                                                                    | [public-release-gate.md](./public-release-gate.md)                                            |
+| Reviewer / contributor               | Local working tree, protocol-touching change | `npm run test:e2e:localnet`                                                                                   | [public-release-gate.md](./public-release-gate.md)                                            |
+| Release manager                      | Public-tag / mainnet promotion               | fill in evidence template before promoting                                                                    | [release-candidate-evidence-template.md](./release-candidate-evidence-template.md)            |
+| Devnet operator                      | Shared devnet beta                           | `npm run devnet:beta:deploy` → `npm run protocol:bootstrap:devnet-live` → `npm run devnet:frontend:bootstrap` | [devnet-beta-runbook.md](./devnet-beta-runbook.md)                                            |
+| Devnet operator                      | Devnet observability sweep                   | `npm run devnet:beta:observe`                                                                                 | [devnet-beta-runbook.md](./devnet-beta-runbook.md)                                            |
+| Devnet operator                      | Drawer simulation (no state mutation)        | `npm run devnet:operator:drawer:sim`                                                                          | [devnet-beta-runbook.md](./devnet-beta-runbook.md#operator-drawer-simulation)                 |
+| Mainnet operator                     | Genesis live bootstrap (preview)             | `npm run protocol:bootstrap:genesis-live -- --plan`                                                           | [genesis-live-bootstrap.md](./genesis-live-bootstrap.md)                                      |
+| Mainnet operator                     | Genesis live bootstrap (apply)               | `npm run protocol:bootstrap:genesis-live` (with `OMEGAX_REQUIRE_DISTINCT_OPERATOR_KEYS=1`)                    | [genesis-live-bootstrap.md](./genesis-live-bootstrap.md)                                      |
+| Mainnet operator / frontend reviewer | Phase 0 surface gating                       | confirm launch profile, disabled previews, and reservation visibility                                         | [phase0-mainnet-surface-gating.md](./phase0-mainnet-surface-gating.md)                        |
+| Protocol / incident reviewer         | Robinhood Phase 0 local incident rehearsal   | `npm run robinhood:test` and retain public-safe evidence                                                      | [robinhood-phase0-incident-exercises.md](./robinhood-phase0-incident-exercises.md)            |
+| Launch operator                      | Founder reservation mode                     | configure Squads vault, route public CTAs, reconcile pending reservations                                     | [founder-reservation-runbook.md](./founder-reservation-runbook.md)                            |
+| Hosting operator                     | Firebase App Hosting cutover                 | follow the cutover checklist                                                                                  | [firebase-app-hosting-cutover.md](./firebase-app-hosting-cutover.md)                          |
+| Release manager                      | Public-tag promotion                         | walk the gate, then publish notes                                                                             | [public-release-gate.md](./public-release-gate.md) + [release-v0.3.1.md](./release-v0.3.1.md) |
+| Anyone touching the on-chain surface | Local                                        | `npm run anchor:idl` then `npm run protocol:contract` then `npm run idl:freshness:check`                      | [public-release-gate.md](./public-release-gate.md#generated-artifacts)                        |
 
 ## Pre-flight: required environment
 

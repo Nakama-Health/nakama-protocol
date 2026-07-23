@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "status": "unconfigured",
+  "chainId": 46630,
+  "caip2": "eip155:46630",
+  "sourceCommit": null,
+  "protocolArtifactSha256": null,
+  "suiteId": null,
+  "programId": null,
+  "deploymentTransaction": null,
+  "contracts": null,
+  "verified": false,
+  "funded": false,
+  "auditStatus": "unaudited"
+}

@@ -1,21 +1,46 @@
 # Nakama Protocol
 
-Nakama Protocol's current launch job is concrete: help a sponsor fund Travel 30 acute travel protection for a cohort, show whether the reserve posture can support it, and trace every claim from intake to payout.
+This branch's primary target is a Robinhood Chain-native, sponsor-funded Genesis Protection Program. One accountable sponsor posts the complete USDG budget for a bounded cohort; eligible members activate against exact terms; accountable humans sign decisions and appeals; and approved obligations settle from a segregated program vault.
 
-Plainly: a sponsor can fund a protected group, see what backs the promise, and audit what happened when a claim is reviewed or paid.
+Plainly: a sponsor can fund a protected group, members can understand and use a real support program without buying a token, and everyone can reconcile what was promised, reserved, approved, paid, and returned.
 
-The current public launch reference is Genesis Protect Acute. `Travel 30` is the primary Founder SKU: a 100-seat cohort where 99 USDC reserves access to a reserve-indexed 30-day travel cap targeting up to 250,000 USDC at activation, unlocked only when the posted claims-paying reserve/backstop reaches the required threshold and final terms are ready. `Event 7` is the short-window cohort/demo SKU, with a 7-day window and a 3,000 USDC fixed-benefit cap. Both remain bounded launch surfaces: reservations are not active cover today, pending custody is not claims-paying reserve, this is not comprehensive travel insurance, and Phase 0 claim review is operator-backed rather than fully decentralized.
+The isolated Solidity implementation is complete as a local/testnet-ready candidate. It remains unaudited and undeployed: there is no Nakama Robinhood address, funded program, legal approval, Robinhood relationship, Virtuals approval, or token launch. Solana devnet and the earlier Ethereum candidate remain preserved implementation history, not this branch's target architecture.
 
-On Solana devnet beta today, the public surface in this repository can already anchor:
+## Robinhood Phase 0 Implementation Candidate
+
+The Solidity surface under [`contracts/robinhood/`](./contracts/robinhood/README.md) implements deterministic versioned deployment, exact six-decimal USDG custody, pseudonymous membership, typed human decisions and appeals, exact settlement, bounded agent policy, and scoped incident controls.
+
+The canonical interface is [`shared/robinhood/protocol_contract.json`](./shared/robinhood/protocol_contract.json). Start with [Robinhood Phase 0 Protocol Implementation](./docs/architecture/robinhood-phase0-protocol.md) and the [Robinhood/Virtuals strategy](./docs/robinhood-virtuals/README.md).
+
+## Preserved Legacy Implementations
+
+The following surfaces remain available for compatibility, research, and migration review. They do not define the new Robinhood-native product.
+
+### Solana devnet beta
+
+The existing Solana beta can anchor:
 
 - sponsor-funded reward or protection lanes with explicit reserve and funding-line attribution
 - contributor-signed backstop deposits with on-chain contribution/return balances
 - operator-mediated member enrollment, claim intake, obligations, reserve booking, and payouts
 
+### Ethereum implementation candidate
+
+The Solidity 0.8.28 surface is immutable by design: it has no proxy, global owner, global pause, or arbitrary controller-created payout. A constructor-only `NakamaProtocolFactory` atomically creates `NakamaPolicyRegistry` at factory CREATE nonce 1 and `NakamaCoverageProtocol` at nonce 2, then retains getters only. Scope-local controllers can stop new activity, but existing claims, contributor exits from unencumbered equity, finalization, reservation, and settlement remain available.
+
+The schema-v3 machine-readable interface is [`shared/ethereum/protocol_contract.json`](./shared/ethereum/protocol_contract.json), with standalone ABIs for the factory, core, registry, and reserve-vault template. `ReserveVault` has no single launch address: the core creates one deterministic CREATE2 vault per domain and ERC-20 pair. The checked-in deployment example stays `unconfigured`; clients must not infer a mainnet address from the presence of compiled contracts.
+
+Start with:
+
+- [Ethereum Mainnet Protocol Vertical Slice](./docs/architecture/ethereum-mainnet-protocol.md)
+- [Ethereum CROPS and Walkaway Review](./docs/security/ethereum-crops-walkaway.md)
+- [`deployments/ethereum-mainnet.example.json`](./deployments/ethereum-mainnet.example.json)
+
 ## Start Here
 
-- [Genesis Protect V1 Curve Launch Plan](./docs/architecture/genesis-protect-v1-curve-launch.md)
-- [Genesis Protect Claim Trace](./docs/architecture/genesis-protect-claim-trace.md)
+- [Robinhood Phase 0 Protocol Implementation](./docs/architecture/robinhood-phase0-protocol.md)
+- [Robinhood and Virtuals Strategy](./docs/robinhood-virtuals/README.md)
+- [Robinhood Contract Package](./contracts/robinhood/README.md)
 - [What Exists Today](https://docs.nakama.health/docs/protocol/current-program-surface)
 - [Repository Documentation Map](./docs/README.md)
 - [SDK Overview](https://docs.nakama.health/docs/sdk/sdk-overview)
@@ -24,12 +49,12 @@ On Solana devnet beta today, the public surface in this repository can already a
 
 ### Sponsors and protection operators
 
-Fund a Travel 30 cohort, inspect reserve sufficiency, follow claim obligations, and prove payouts without treating pending custody, premiums, LP capital, or claims-paying reserve as the same thing.
+Fund a bounded Genesis cohort in USDG, enroll eligible members against exact terms, follow request and appeal obligations, and prove payouts without mixing program reserves with token or agent treasury activity.
 
 Start with:
 
-- [Genesis Protect V1 Curve Launch Plan](./docs/architecture/genesis-protect-v1-curve-launch.md)
-- [Genesis Protect Claim Trace](./docs/architecture/genesis-protect-claim-trace.md)
+- [Genesis Product Specification](./docs/robinhood-virtuals/03-genesis-product-spec.md)
+- [Robinhood Phase 0 Protocol Implementation](./docs/architecture/robinhood-phase0-protocol.md)
 - [What Exists Today](https://docs.nakama.health/docs/protocol/current-program-surface)
 
 ### Reserve and backstop integrators
@@ -146,12 +171,13 @@ Read the canonical design set first:
 
 ## Repository Layout
 
+- [`contracts/`](./contracts/) contains the immutable Ethereum factory, custody core, policy registry, isolated reserve-vault template, accounting library, and test tokens
 - [`programs/nakama_coverage_protocol/`](./programs/nakama_coverage_protocol/) contains the onchain Anchor program
 - [`frontend/`](./frontend/) contains the public protocol console and deterministic read models
 - [`tests/`](./tests/) contains the fast Node-based scenario suite
 - [`e2e/`](./e2e/) contains the heavier localnet audit entrypoint
 - [`scripts/`](./scripts/) contains artifact generation and devnet migration helpers
-- [`idl/`](./idl/), [`shared/`](./shared/), and [`frontend/lib/generated/`](./frontend/lib/generated/) contain checked-in generated contract artifacts
+- [`idl/`](./idl/), [`shared/`](./shared/), and [`frontend/lib/generated/`](./frontend/lib/generated/) contain checked-in generated contract artifacts, including four canonical Ethereum ABIs, creation hashes and sizes, normalized runtime-template hashes, and immutable byte ranges
 
 ## Quick Start
 
@@ -161,6 +187,24 @@ Install dependencies:
 npm ci
 npm --prefix frontend ci
 ```
+
+Build and test the Ethereum implementation candidate:
+
+```bash
+npm run ethereum:build
+npm run ethereum:test
+npm run ethereum:contract:check
+```
+
+Regenerate the canonical Ethereum artifact after a Solidity change:
+
+```bash
+npm run ethereum:contract
+```
+
+`npm run ethereum:deploy:preflight` is the read-only release check. It deliberately fails until an independent audit and explicit release approval are bound to an operator-local manifest; do not run the transaction-producing mainnet command as a development smoke test.
+
+The deployment command sends one factory transaction. Its output remains explicitly unverified until `ethereum:manifest:promote` independently validates the canonical finalized factory receipt, nonce-1 registry and nonce-2 core addresses, all three live runtime and cross-binding checks, fixed Sourcify v2 exact matches for each live contract, and all four SDK ABIs. The final public shape is machine-defined in [`deployments/ethereum-mainnet.final.schema.json`](./deployments/ethereum-mainnet.final.schema.json); the reserve vault remains an artifact-bound CREATE2 template until a real domain and asset instantiate it.
 
 Regenerate the canonical onchain artifacts:
 
@@ -265,6 +309,8 @@ The fast suite now focuses on the scenarios that matter to the redesign:
 
 ## Documentation Map
 
+- [Ethereum Mainnet Protocol Vertical Slice](./docs/architecture/ethereum-mainnet-protocol.md)
+- [Ethereum CROPS and Walkaway Review](./docs/security/ethereum-crops-walkaway.md)
 - [Solana Program Architecture](./docs/architecture/solana-program-architecture.md)
 - [Solana Instruction Map](./docs/architecture/solana-instruction-map.md)
 - [Repository Layout](./docs/architecture/repository-layout.md)

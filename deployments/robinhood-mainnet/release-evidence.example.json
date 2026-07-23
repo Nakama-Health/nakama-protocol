@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-for-dry-run",
+  "chainId": 4663,
+  "caip2": "eip155:4663",
+  "sourceCommit": "REPLACE_WITH_FULL_LOWERCASE_SOURCE_COMMIT",
+  "protocolArtifactSha256": "REPLACE_WITH_PROTOCOL_ARTIFACT_SHA256",
+  "deploymentCodeCommitment": "REPLACE_WITH_DEPLOYMENT_CODE_COMMITMENT",
+  "expectedDeployer": "REPLACE_WITH_THRESHOLD_SPONSOR_ADDRESS",
+  "expectedDeployerNonce": "REPLACE_WITH_FINALIZED_NONCE",
+  "usdG": {
+    "address": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+    "runtimeCodeHash": "REPLACE_WITH_NONZERO_RUNTIME_CODE_HASH",
+    "verificationUrl": "https://REPLACE_WITH_AUTHORITATIVE_USDG_EVIDENCE"
+  },
+  "audit": {
+    "reportSha256": "REPLACE_WITH_NONZERO_AUDIT_REPORT_SHA256",
+    "reviewer": "REPLACE_WITH_INDEPENDENT_AUDITOR_ADDRESS"
+  },
+  "releaseApproval": {
+    "recordSha256": "REPLACE_WITH_NONZERO_RELEASE_APPROVAL_SHA256",
+    "approver": "REPLACE_WITH_RELEASE_APPROVER_ADDRESS"
+  },
+  "legalApproval": {
+    "recordSha256": "REPLACE_WITH_NONZERO_LEGAL_APPROVAL_SHA256",
+    "approver": "REPLACE_WITH_LEGAL_APPROVER_ADDRESS"
+  }
+}
