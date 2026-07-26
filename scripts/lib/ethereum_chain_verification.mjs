@@ -111,18 +111,30 @@ async function readAddressGetter(
   return decodeAddressResult(result, `${signature} at ${contractAddress}`);
 }
 
-export async function attestEthereumMainnetDeployment(
+export async function attestEvmFactoryDeployment(
   deployment,
   release,
-  { rpcUrl, fetchImpl = fetch }
+  {
+    rpcUrl,
+    expectedChainId = ETHEREUM_MAINNET_CHAIN_ID,
+    expectedCaip2 = "eip155:1",
+    minimumFinalConfirmations = MINIMUM_FINAL_CONFIRMATIONS,
+    chainLabel = "Ethereum mainnet",
+    fetchImpl = fetch,
+  }
 ) {
   const chainId = quantity(
     await jsonRpc(rpcUrl, "eth_chainId", [], fetchImpl),
     "eth_chainId"
   );
   requireCondition(
-    chainId === ETHEREUM_MAINNET_CHAIN_ID,
-    `RPC chainId is ${chainId}; expected Ethereum mainnet 1`
+    chainId === BigInt(expectedChainId),
+    `RPC chainId is ${chainId}; expected ${chainLabel} ${expectedChainId}`
+  );
+  requireCondition(
+    deployment.chainId === Number(expectedChainId) &&
+      deployment.caip2 === expectedCaip2,
+    `Deployment manifest is not bound to ${expectedCaip2}`
   );
 
   const transactionHash = hash(
@@ -135,11 +147,11 @@ export async function attestEthereumMainnetDeployment(
   ]);
   requireCondition(
     transaction !== null,
-    "Deployment transaction does not exist on Ethereum mainnet"
+    `Deployment transaction does not exist on ${chainLabel}`
   );
   requireCondition(
     receipt !== null,
-    "Deployment transaction receipt does not exist on Ethereum mainnet"
+    `Deployment transaction receipt does not exist on ${chainLabel}`
   );
   requireCondition(
     hash(transaction.hash, "transaction.hash") === transactionHash,
@@ -301,20 +313,20 @@ export async function attestEthereumMainnetDeployment(
   requireCondition(
     finalizedBlockNumber <= safeBlockNumber &&
       safeBlockNumber <= latestBlockNumber,
-    "Ethereum finalized/safe/latest head ordering is invalid"
+    `${chainLabel} finalized/safe/latest head ordering is invalid`
   );
   requireCondition(
     deploymentBlock <= safeBlockNumber,
-    "Deployment block has not reached Ethereum safe head"
+    `Deployment block has not reached the ${chainLabel} safe head`
   );
   requireCondition(
     deploymentBlock <= finalizedBlockNumber,
-    "Deployment block has not reached Ethereum finalized head"
+    `Deployment block has not reached the ${chainLabel} finalized head`
   );
   const confirmationCount = latestBlockNumber - deploymentBlock + 1n;
   requireCondition(
-    confirmationCount >= BigInt(MINIMUM_FINAL_CONFIRMATIONS),
-    `Deployment has ${confirmationCount} confirmations; ${MINIMUM_FINAL_CONFIRMATIONS} required`
+    confirmationCount >= BigInt(minimumFinalConfirmations),
+    `Deployment has ${confirmationCount} confirmations; ${minimumFinalConfirmations} required`
   );
 
   const liveContracts = {};
@@ -411,8 +423,8 @@ export async function attestEthereumMainnetDeployment(
 
   return {
     ...deployment,
-    chainId: 1,
-    caip2: "eip155:1",
+    chainId: Number(expectedChainId),
+    caip2: expectedCaip2,
     deployer,
     deploymentTransaction: transactionHash,
     deploymentBlock: Number(deploymentBlock),
@@ -422,8 +434,22 @@ export async function attestEthereumMainnetDeployment(
   };
 }
 
-export function sourcifyLookupUrl(contractAddress) {
-  return `${SOURCIFY_V2_PREFIX}${address(
+export async function attestEthereumMainnetDeployment(
+  deployment,
+  release,
+  options
+) {
+  return attestEvmFactoryDeployment(deployment, release, {
+    ...options,
+    expectedChainId: ETHEREUM_MAINNET_CHAIN_ID,
+    expectedCaip2: "eip155:1",
+    minimumFinalConfirmations: MINIMUM_FINAL_CONFIRMATIONS,
+    chainLabel: "Ethereum mainnet",
+  });
+}
+
+export function sourcifyLookupUrl(contractAddress, chainId = 1) {
+  return `https://sourcify.dev/server/v2/contract/${chainId}/${address(
     contractAddress,
     "Sourcify contract address"
   )}`;
@@ -431,10 +457,10 @@ export function sourcifyLookupUrl(contractAddress) {
 
 export async function verifySourcifyExactMatch(
   contractAddress,
-  { fetchImpl = fetch } = {}
+  { fetchImpl = fetch, chainId = 1, chainLabel = "Ethereum mainnet" } = {}
 ) {
   const expectedAddress = address(contractAddress, "Sourcify contract address");
-  const verificationUrl = sourcifyLookupUrl(expectedAddress);
+  const verificationUrl = sourcifyLookupUrl(expectedAddress, chainId);
   const response = await fetchImpl(verificationUrl, {
     method: "GET",
     headers: { accept: "application/json" },
@@ -443,8 +469,8 @@ export async function verifySourcifyExactMatch(
     throw new Error(`Sourcify v2 lookup failed with HTTP ${response.status}`);
   const result = await response.json();
   requireCondition(
-    String(result.chainId) === "1",
-    "Sourcify result is not for Ethereum mainnet"
+    String(result.chainId) === String(chainId),
+    `Sourcify result is not for ${chainLabel}`
   );
   requireCondition(
     address(result.address, "Sourcify result address") === expectedAddress,

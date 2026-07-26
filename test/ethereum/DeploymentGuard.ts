@@ -25,6 +25,7 @@ import {
   runtimeBytecodeTemplateHash,
 } from "../../scripts/lib/ethereum_bytecode.mjs";
 import {
+  attestEvmFactoryDeployment,
   attestEthereumMainnetDeployment,
   sourcifyLookupUrl,
   verifySourcifyExactMatch,
@@ -906,6 +907,40 @@ describe("Ethereum mainnet deployment guard", function () {
     expect(attested.liveContracts.protocol.address).to.equal(
       fixture.addresses.protocol
     );
+  });
+
+  it("reuses the same factory attestation on Robinhood testnet without weakening chain binding", async function () {
+    const fixture = makeChainFixture();
+    fixture.state.safeBlock.number = "0x78";
+    fixture.state.finalizedBlock.number = "0x77";
+    fixture.state.latestBlock = "0x78";
+    const deployment = {
+      ...fixture.intermediate,
+      chainId: 46630,
+      caip2: "eip155:46630",
+    };
+    const fetchImpl = async (
+      url: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const request = JSON.parse(String(init?.body));
+      if (request.method === "eth_chainId") return rpcResponse("0xb626");
+      return fixture.fetchImpl(url, init);
+    };
+    const attested = await attestEvmFactoryDeployment(
+      deployment,
+      fixture.release,
+      {
+        rpcUrl: "https://robinhood-testnet.example.invalid/rpc",
+        expectedChainId: 46630n,
+        expectedCaip2: "eip155:46630",
+        minimumFinalConfirmations: 20,
+        chainLabel: "Robinhood Chain Testnet",
+        fetchImpl,
+      }
+    );
+    expect(attested.chainId).to.equal(46630);
+    expect(attested.caip2).to.equal("eip155:46630");
   });
 
   it("rejects forged child identity, altered factory initcode, unsafe heads, changed code, and binding mismatch", async function () {

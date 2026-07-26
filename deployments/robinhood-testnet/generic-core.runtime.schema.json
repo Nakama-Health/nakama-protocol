@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Nakama Robinhood Testnet Generic Core Runtime Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "chainId",
+    "factoryAddress",
+    "protocolContractAddress",
+    "policyRegistryAddress",
+    "runtimeBytecodeSha256",
+    "evidence"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 3
+    },
+    "chainId": {
+      "const": "eip155:46630"
+    },
+    "factoryAddress": {
+      "$ref": "#/$defs/address"
+    },
+    "protocolContractAddress": {
+      "$ref": "#/$defs/address"
+    },
+    "policyRegistryAddress": {
+      "$ref": "#/$defs/address"
+    },
+    "runtimeBytecodeSha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "factory",
+        "protocol",
+        "policyRegistry"
+      ],
+      "properties": {
+        "factory": {
+          "$ref": "#/$defs/sha256"
+        },
+        "protocol": {
+          "$ref": "#/$defs/sha256"
+        },
+        "policyRegistry": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "factoryReceiptFinalized",
+        "factoryDerivedAddressesVerified",
+        "coreDeploymentFactoryVerified",
+        "immutableCrossBindingsVerified",
+        "runtimeBytecodeVerified",
+        "blockscoutContractsVerified",
+        "sourcifyMatchesVerified",
+        "reserveVaultTemplateVerified"
+      ],
+      "properties": {
+        "factoryReceiptFinalized": {
+          "const": true
+        },
+        "factoryDerivedAddressesVerified": {
+          "const": true
+        },
+        "coreDeploymentFactoryVerified": {
+          "const": true
+        },
+        "immutableCrossBindingsVerified": {
+          "const": true
+        },
+        "runtimeBytecodeVerified": {
+          "const": true
+        },
+        "blockscoutContractsVerified": {
+          "const": true
+        },
+        "sourcifyMatchesVerified": {
+          "const": true
+        },
+        "reserveVaultTemplateVerified": {
+          "const": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

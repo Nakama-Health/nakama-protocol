@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 3,
+  "status": "not-approved",
+  "chainId": 46630,
+  "caip2": "eip155:46630",
+  "sourceCommit": null,
+  "expectedDeployer": null,
+  "qualificationReportSha256": null,
+  "releaseApprovalSha256": null,
+  "protocolArtifactSha256": null,
+  "settlementAsset": {
+    "address": null,
+    "contractName": "NakamaTestUsd",
+    "name": "Nakama Test USD",
+    "symbol": "tUSDG",
+    "decimals": 6,
+    "deploymentTransaction": null,
+    "classification": "test-only-mock",
+    "canonical": false
+  },
+  "contracts": {
+    "NakamaProtocolFactory": {
+      "creationBytecodeHash": null,
+      "runtimeBytecodeTemplateHash": null
+    },
+    "NakamaCoverageProtocol": {
+      "creationBytecodeHash": null,
+      "runtimeBytecodeTemplateHash": null
+    },
+    "NakamaPolicyRegistry": {
+      "creationBytecodeHash": null,
+      "runtimeBytecodeTemplateHash": null
+    },
+    "ReserveVault": {
+      "creationBytecodeHash": null,
+      "runtimeBytecodeTemplateHash": null
+    }
+  },
+  "qualificationReviewCompleted": false,
+  "releaseApproved": false
+}

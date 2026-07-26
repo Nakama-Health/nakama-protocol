@@ -35,7 +35,16 @@ function equalJson(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export async function runReleasePreflight(config, root = process.cwd()) {
+export async function runReleasePreflight(
+  config,
+  root = process.cwd(),
+  {
+    releaseManifestRelativePath = "deployments/ethereum-mainnet.release.json",
+    missingReleaseManifestMessage =
+      "Missing deployments/ethereum-mainnet.release.json; copy the example only after audit and release approval",
+    validateManifest = validateReleaseManifest,
+  } = {}
+) {
   const [{ stdout: headCommit }, { stdout: statusPorcelain }] =
     await Promise.all([
       execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root }),
@@ -56,15 +65,13 @@ export async function runReleasePreflight(config, root = process.cwd()) {
   );
   const releaseManifestPath = resolve(
     root,
-    "deployments/ethereum-mainnet.release.json"
+    releaseManifestRelativePath
   );
   const [protocolArtifactRaw, releaseManifestRaw, ...artifactAndAbiRaw] =
     await Promise.all([
       readFile(protocolArtifactPath, "utf8"),
       readFile(releaseManifestPath, "utf8").catch(() => {
-        throw new Error(
-          "Missing deployments/ethereum-mainnet.release.json; copy the example only after audit and release approval"
-        );
+        throw new Error(missingReleaseManifestMessage);
       }),
       ...ETHEREUM_CONTRACT_NAMES.flatMap((contractName) => [
         readFile(hardhatArtifactPath(root, contractName), "utf8"),
@@ -141,7 +148,7 @@ export async function runReleasePreflight(config, root = process.cwd()) {
   const protocolArtifactSha256 = createHash("sha256")
     .update(protocolArtifactRaw)
     .digest("hex");
-  validateReleaseManifest(config, releaseManifest, {
+  validateManifest(config, releaseManifest, {
     contracts,
     protocolArtifactSha256,
   });

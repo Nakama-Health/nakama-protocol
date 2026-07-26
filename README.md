@@ -30,6 +30,14 @@ The Solidity 0.8.28 surface is immutable by design: it has no proxy, global owne
 
 The schema-v3 machine-readable interface is [`shared/ethereum/protocol_contract.json`](./shared/ethereum/protocol_contract.json), with standalone ABIs for the factory, core, registry, and reserve-vault template. `ReserveVault` has no single launch address: the core creates one deterministic CREATE2 vault per domain and ERC-20 pair. The checked-in deployment example stays `unconfigured`; clients must not infer a mainnet address from the presence of compiled contracts.
 
+That generic core also has a fail-closed
+[Robinhood testnet qualification path](./scripts/README.md#robinhood-chain-testnet)
+for the member-app runtime. The path uses chain `eip155:46630`, two independent
+RPC providers, a visibly test-only fixed-supply token, finalized receipt
+replay, and exact Blockscout plus Sourcify verification before it can produce a
+runtime manifest. It does not authorize Robinhood mainnet, canonical USDG, or
+production writes.
+
 Start with:
 
 - [Ethereum Mainnet Protocol Vertical Slice](./docs/architecture/ethereum-mainnet-protocol.md)

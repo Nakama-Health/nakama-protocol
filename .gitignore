@@ -64,6 +64,15 @@ deployments/ethereum-mainnet.release.json
 deployments/ethereum-mainnet.pending.json
 deployments/ethereum-mainnet.broadcast.json
 
+# Operator-local Robinhood generic-core qualification and deployment state
+deployments/robinhood-testnet/generic-core.release.json
+deployments/robinhood-testnet/generic-core.pending.json
+deployments/robinhood-testnet/generic-core.broadcast.json
+deployments/robinhood-testnet/generic-core.runtime.json
+deployments/robinhood-testnet/generic-core.verification-evidence.json
+deployments/robinhood-testnet/test-settlement-asset.pending.json
+deployments/robinhood-testnet/test-settlement-asset.broadcast.json
+
 # Private internal research data
 /internal-db/
 /internal-db/actuarial-research/
