@@ -152,9 +152,15 @@ jobs:
             throw new Error("Recovered settlement-asset evidence does not match");
           }
           const providers = [
-            new JsonRpcProvider(process.env.ROBINHOOD_TESTNET_RPC_URL),
             new JsonRpcProvider(
-              process.env.ROBINHOOD_TESTNET_RPC_FALLBACK_URL
+              process.env.ROBINHOOD_TESTNET_RPC_URL,
+              undefined,
+              { batchMaxCount: 1 }
+            ),
+            new JsonRpcProvider(
+              process.env.ROBINHOOD_TESTNET_RPC_FALLBACK_URL,
+              undefined,
+              { batchMaxCount: 1 }
             ),
           ];
           const states = await Promise.all(
