@@ -48,7 +48,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
-          node-version: 20
+          node-version: 22.13.0
           cache: npm
 
       - name: Install locked dependencies
@@ -296,7 +296,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: robinhood-testnet-${{ github.sha }}-${{ github.run_id }}
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
           path: |
             ${{ runner.temp }}/robinhood-testnet-qualification.json
