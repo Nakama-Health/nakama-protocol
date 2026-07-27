@@ -15,6 +15,30 @@ const compilerSettings = {
 
 export default defineConfig({
   plugins: [hardhatToolboxMochaEthersPlugin],
+  chainDescriptors: {
+    4663: {
+      name: "Robinhood Chain",
+      chainType: "generic",
+      blockExplorers: {
+        blockscout: {
+          name: "Robinhood Chain Blockscout",
+          url: "https://robinhoodchain.blockscout.com",
+          apiUrl: "https://robinhoodchain.blockscout.com/api",
+        },
+      },
+    },
+    46630: {
+      name: "Robinhood Chain Testnet",
+      chainType: "generic",
+      blockExplorers: {
+        blockscout: {
+          name: "Robinhood Chain Testnet Blockscout",
+          url: "https://explorer.testnet.chain.robinhood.com",
+          apiUrl: "https://explorer.testnet.chain.robinhood.com/api",
+        },
+      },
+    },
+  },
   paths: {
     sources: {
       solidity: ["contracts"],

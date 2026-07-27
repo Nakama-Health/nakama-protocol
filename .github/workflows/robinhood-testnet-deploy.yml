@@ -72,20 +72,38 @@ jobs:
               process.env.ROBINHOOD_TESTNET_RPC_FALLBACK_URL
             ),
           ];
-          const [primaryNetwork, fallbackNetwork, primaryBlock, fallbackBlock] =
-            await Promise.all([
-              providers[0].getNetwork(),
-              providers[1].getNetwork(),
-              providers[0].getBlockNumber(),
-              providers[1].getBlockNumber(),
-            ]);
+          const expectedDeployer =
+            process.env.NAKAMA_ROBINHOOD_TEST_ASSET_EXPECTED_DEPLOYER;
+          const [
+            primaryNetwork,
+            fallbackNetwork,
+            primaryBlock,
+            fallbackBlock,
+            primaryLatestNonce,
+            primaryPendingNonce,
+            fallbackLatestNonce,
+            fallbackPendingNonce,
+          ] = await Promise.all([
+            providers[0].getNetwork(),
+            providers[1].getNetwork(),
+            providers[0].getBlockNumber(),
+            providers[1].getBlockNumber(),
+            providers[0].getTransactionCount(expectedDeployer, "latest"),
+            providers[0].getTransactionCount(expectedDeployer, "pending"),
+            providers[1].getTransactionCount(expectedDeployer, "latest"),
+            providers[1].getTransactionCount(expectedDeployer, "pending"),
+          ]);
           if (
             primaryNetwork.chainId !== 46630n ||
             fallbackNetwork.chainId !== 46630n ||
-            Math.abs(primaryBlock - fallbackBlock) > 20
+            Math.abs(primaryBlock - fallbackBlock) > 20 ||
+            primaryLatestNonce !== 0 ||
+            primaryPendingNonce !== 0 ||
+            fallbackLatestNonce !== 0 ||
+            fallbackPendingNonce !== 0
           ) {
             throw new Error(
-              "Independent RPC providers do not agree on Robinhood testnet"
+              "Providers disagree or this single-use deployer has already broadcast"
             );
           }
           NODE

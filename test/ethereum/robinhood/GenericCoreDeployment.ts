@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { createHash } from "node:crypto";
 import { Interface, getAddress, keccak256 } from "ethers";
-import { network } from "hardhat";
+import { config, network } from "hardhat";
 
 import {
   ROBINHOOD_GENERIC_TESTNET_CAIP2,
@@ -35,21 +35,18 @@ import {
 
 const { ethers } = await network.create();
 const deployer = "0x00000000000000000000000000000000000000A1";
-const settlementAddress =
-  "0x00000000000000000000000000000000000000B1";
+const settlementAddress = "0x00000000000000000000000000000000000000B1";
 const settlementTransaction = `0x${"12".repeat(32)}`;
 const safeEnvironment = {
   NAKAMA_ROBINHOOD_GENERIC_TESTNET_DEPLOY_CONFIRMATION:
     ROBINHOOD_GENERIC_TESTNET_CONFIRMATION,
   ROBINHOOD_TESTNET_RPC_URL: "https://primary.example.invalid/rpc",
-  ROBINHOOD_TESTNET_RPC_FALLBACK_URL:
-    "https://fallback.example.invalid/rpc",
+  ROBINHOOD_TESTNET_RPC_FALLBACK_URL: "https://fallback.example.invalid/rpc",
   ROBINHOOD_TESTNET_PRIVATE_KEY: `0x${"11".repeat(32)}`,
   NAKAMA_ROBINHOOD_GENERIC_TESTNET_EXPECTED_DEPLOYER: deployer,
   NAKAMA_ROBINHOOD_GENERIC_TESTNET_SOURCE_COMMIT: "a".repeat(40),
   NAKAMA_ROBINHOOD_GENERIC_TESTNET_QUALIFICATION_SHA256: "b".repeat(64),
-  NAKAMA_ROBINHOOD_GENERIC_TESTNET_RELEASE_APPROVAL_SHA256:
-    "c".repeat(64),
+  NAKAMA_ROBINHOOD_GENERIC_TESTNET_RELEASE_APPROVAL_SHA256: "c".repeat(64),
   NAKAMA_ROBINHOOD_GENERIC_TESTNET_CONFIRMATIONS: "20",
   NAKAMA_ROBINHOOD_GENERIC_TESTNET_MIN_DEPLOYER_BALANCE_WEI: "1",
   ROBINHOOD_TESTNET_SETTLEMENT_ASSET_ADDRESS: settlementAddress,
@@ -71,9 +68,7 @@ function makeReleaseAndIntermediate() {
       {
         creationBytecodeHash: `0x${String(index + 1).repeat(64)}`,
         creationBytecodeBytes: 100 + index,
-        runtimeBytecodeTemplateHash: `0x${String(index + 5).repeat(
-          64
-        )}`,
+        runtimeBytecodeTemplateHash: `0x${String(index + 5).repeat(64)}`,
         runtimeBytecodeBytes: 80 + index,
         immutableReferences: [],
         abiSha256: String(index + 6).repeat(64),
@@ -122,8 +117,7 @@ function makeReleaseAndIntermediate() {
           creationBytecodeBytes: approved.creationBytecodeBytes,
           runtimeBytecodeHash: `0x${String(index + 7).repeat(64)}`,
           runtimeBytecodeSha256: String(index + 1).repeat(64),
-          runtimeBytecodeTemplateHash:
-            approved.runtimeBytecodeTemplateHash,
+          runtimeBytecodeTemplateHash: approved.runtimeBytecodeTemplateHash,
           runtimeBytecodeBytes: approved.runtimeBytecodeBytes,
           immutableReferences: [],
           abiArtifact: protocolAbiPath(identity.contractName),
@@ -182,6 +176,23 @@ function makeReleaseAndIntermediate() {
 }
 
 describe("Robinhood generic-core testnet deployment gates", function () {
+  it("registers the official Robinhood Blockscout explorers", function () {
+    expect(
+      config.chainDescriptors.get(46630n)?.blockExplorers.blockscout
+    ).to.deep.equal({
+      name: "Robinhood Chain Testnet Blockscout",
+      url: "https://explorer.testnet.chain.robinhood.com",
+      apiUrl: "https://explorer.testnet.chain.robinhood.com/api",
+    });
+    expect(
+      config.chainDescriptors.get(4663n)?.blockExplorers.blockscout
+    ).to.deep.equal({
+      name: "Robinhood Chain Blockscout",
+      url: "https://robinhoodchain.blockscout.com",
+      apiUrl: "https://robinhoodchain.blockscout.com/api",
+    });
+  });
+
   it("requires two providers and an explicitly noncanonical test asset", function () {
     const config = validateRobinhoodGenericTestnetEnvironment(safeEnvironment);
     expect(config.settlementAsset).to.deep.equal({
@@ -205,8 +216,7 @@ describe("Robinhood generic-core testnet deployment gates", function () {
     expect(() =>
       validateRobinhoodGenericTestnetEnvironment({
         ...safeEnvironment,
-        ROBINHOOD_TESTNET_RPC_URL:
-          "https://rpc.testnet.chain.robinhood.com",
+        ROBINHOOD_TESTNET_RPC_URL: "https://rpc.testnet.chain.robinhood.com",
       })
     ).to.throw("public testnet RPC is rate-limited");
     expect(() =>
@@ -242,8 +252,7 @@ describe("Robinhood generic-core testnet deployment gates", function () {
         ETHEREUM_CONTRACT_NAMES.map((contractName) => [
           contractName,
           {
-            creationBytecodeHash:
-              contracts[contractName].creationBytecodeHash,
+            creationBytecodeHash: contracts[contractName].creationBytecodeHash,
             runtimeBytecodeTemplateHash:
               contracts[contractName].runtimeBytecodeTemplateHash,
           },
@@ -361,9 +370,7 @@ describe("Robinhood generic-core testnet deployment gates", function () {
           result = tokenInterface.encodeFunctionResult("name", [
             "Nakama Test USD",
           ]);
-        } else if (
-          selector === tokenInterface.encodeFunctionData("symbol")
-        ) {
+        } else if (selector === tokenInterface.encodeFunctionData("symbol")) {
           result = tokenInterface.encodeFunctionResult("symbol", ["tUSDG"]);
         } else {
           result = tokenInterface.encodeFunctionResult("decimals", [6]);
@@ -401,7 +408,7 @@ describe("Robinhood generic-core testnet deployment gates", function () {
               compiler_version: "v0.8.28",
               verified_at: "2026-07-26T00:00:00.000Z",
             }),
-          }) as Response,
+          } as Response),
       }
     );
     expect(evidence.contractName).to.equal("NakamaTestUsd");
@@ -424,8 +431,7 @@ describe("Robinhood generic-core testnet deployment gates", function () {
     const assetEnvironment = {
       NAKAMA_ROBINHOOD_TEST_ASSET_DEPLOY_CONFIRMATION:
         ROBINHOOD_TEST_ASSET_DEPLOY_CONFIRMATION,
-      ROBINHOOD_TESTNET_RPC_URL:
-        safeEnvironment.ROBINHOOD_TESTNET_RPC_URL,
+      ROBINHOOD_TESTNET_RPC_URL: safeEnvironment.ROBINHOOD_TESTNET_RPC_URL,
       ROBINHOOD_TESTNET_RPC_FALLBACK_URL:
         safeEnvironment.ROBINHOOD_TESTNET_RPC_FALLBACK_URL,
       ROBINHOOD_TESTNET_PRIVATE_KEY:
