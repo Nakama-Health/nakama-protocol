@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 75
     environment: robinhood-testnet
     env:
-      ROBINHOOD_TESTNET_RPC_URL: https://46630.rpc.thirdweb.com
+      ROBINHOOD_TESTNET_RPC_URL: https://rpc.testnet.chain.robinhood.com
       ROBINHOOD_TESTNET_RPC_FALLBACK_URL: https://robinhood-testnet.drpc.org
       ROBINHOOD_TESTNET_PRIVATE_KEY: ${{ secrets.ROBINHOOD_TESTNET_PRIVATE_KEY }}
       NAKAMA_ROBINHOOD_TEST_ASSET_EXPECTED_DEPLOYER: ${{ vars.ROBINHOOD_TESTNET_DEPLOYER_ADDRESS }}
@@ -127,7 +127,7 @@ jobs:
               process.env.NAKAMA_ROBINHOOD_TEST_ASSET_EXPECTED_DEPLOYER,
             testsPassed: true,
             providers: [
-              { hostname: "46630.rpc.thirdweb.com" },
+              { hostname: "rpc.testnet.chain.robinhood.com" },
               { hostname: "robinhood-testnet.drpc.org" },
             ],
             productionEnabled: false,

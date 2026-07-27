@@ -34,7 +34,7 @@ jobs:
       DEPLOYED_ASSET_BROADCAST_SHA256: 8da6ccaa1b8e8e369b625198fb6d1e01f964f6508880cf0ed57c4465ae931a9c
       QUALIFICATION_SHA256: 08778b6ee3333c64843028720c8aef2bd9a7d36b168a335644848d8df78b0fff
       APPROVAL_SHA256: 5cfbdb372bd0596a547310fc92746f8b9695e636571cd8cc7f7b76b0f36b9a55
-      ROBINHOOD_TESTNET_RPC_URL: https://46630.rpc.thirdweb.com
+      ROBINHOOD_TESTNET_RPC_URL: https://rpc.testnet.chain.robinhood.com
       ROBINHOOD_TESTNET_RPC_FALLBACK_URL: https://robinhood-testnet.drpc.org
       ROBINHOOD_TESTNET_PRIVATE_KEY: ${{ secrets.ROBINHOOD_TESTNET_PRIVATE_KEY }}
       NAKAMA_ROBINHOOD_GENERIC_TESTNET_EXPECTED_DEPLOYER: ${{ vars.ROBINHOOD_TESTNET_DEPLOYER_ADDRESS }}
@@ -374,6 +374,10 @@ jobs:
               qualification: process.env.QUALIFICATION_SHA256,
               approval: process.env.APPROVAL_SHA256,
             },
+            providers: [
+              { hostname: "rpc.testnet.chain.robinhood.com" },
+              { hostname: "robinhood-testnet.drpc.org" },
+            ],
             productionEnabled: false,
           };
           await writeFile(
