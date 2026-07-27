@@ -1,0 +1,310 @@
+name: Robinhood Testnet Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: >-
+          Enter DEPLOY_IMMUTABLE_NAKAMA_GENERIC_CORE_TO_ROBINHOOD_TESTNET
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: robinhood-testnet-deployment
+  cancel-in-progress: false
+
+jobs:
+  qualify-deploy-verify:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      inputs.confirmation == 'DEPLOY_IMMUTABLE_NAKAMA_GENERIC_CORE_TO_ROBINHOOD_TESTNET'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    environment: robinhood-testnet
+    env:
+      ROBINHOOD_TESTNET_RPC_URL: https://robinhood-testnet.drpc.org
+      ROBINHOOD_TESTNET_RPC_FALLBACK_URL: https://46630.rpc.thirdweb.com
+      ROBINHOOD_TESTNET_PRIVATE_KEY: ${{ secrets.ROBINHOOD_TESTNET_PRIVATE_KEY }}
+      NAKAMA_ROBINHOOD_TEST_ASSET_EXPECTED_DEPLOYER: ${{ vars.ROBINHOOD_TESTNET_DEPLOYER_ADDRESS }}
+      NAKAMA_ROBINHOOD_TEST_ASSET_INITIAL_HOLDER: ${{ vars.ROBINHOOD_TESTNET_DEPLOYER_ADDRESS }}
+      NAKAMA_ROBINHOOD_TEST_ASSET_INITIAL_SUPPLY_UNITS: "1000000000000"
+      NAKAMA_ROBINHOOD_TEST_ASSET_CONFIRMATIONS: "20"
+      NAKAMA_ROBINHOOD_TEST_ASSET_MIN_DEPLOYER_BALANCE_WEI: "5000000000000000"
+      NAKAMA_ROBINHOOD_TEST_ASSET_DEPLOY_CONFIRMATION: DEPLOY_FIXED_SUPPLY_NAKAMA_TEST_USD_TO_ROBINHOOD_TESTNET
+      NAKAMA_ROBINHOOD_GENERIC_TESTNET_EXPECTED_DEPLOYER: ${{ vars.ROBINHOOD_TESTNET_DEPLOYER_ADDRESS }}
+      NAKAMA_ROBINHOOD_GENERIC_TESTNET_CONFIRMATIONS: "20"
+      NAKAMA_ROBINHOOD_GENERIC_TESTNET_MIN_DEPLOYER_BALANCE_WEI: "5000000000000000"
+      NAKAMA_ROBINHOOD_GENERIC_TESTNET_DEPLOY_CONFIRMATION: DEPLOY_IMMUTABLE_NAKAMA_GENERIC_CORE_TO_ROBINHOOD_TESTNET
+
+    steps:
+      - name: Check out exact main commit
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Bind exact source commit
+        run: |
+          echo "NAKAMA_ROBINHOOD_TEST_ASSET_SOURCE_COMMIT=$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "NAKAMA_ROBINHOOD_GENERIC_TESTNET_SOURCE_COMMIT=$GITHUB_SHA" >> "$GITHUB_ENV"
+
+      - name: Qualify source and independent providers
+        run: |
+          npm run ethereum:contract:check
+          npm run robinhood:test
+          node --input-type=module - <<'NODE'
+          import { JsonRpcProvider } from "ethers";
+
+          const providers = [
+            new JsonRpcProvider(process.env.ROBINHOOD_TESTNET_RPC_URL),
+            new JsonRpcProvider(
+              process.env.ROBINHOOD_TESTNET_RPC_FALLBACK_URL
+            ),
+          ];
+          const [primaryNetwork, fallbackNetwork, primaryBlock, fallbackBlock] =
+            await Promise.all([
+              providers[0].getNetwork(),
+              providers[1].getNetwork(),
+              providers[0].getBlockNumber(),
+              providers[1].getBlockNumber(),
+            ]);
+          if (
+            primaryNetwork.chainId !== 46630n ||
+            fallbackNetwork.chainId !== 46630n ||
+            Math.abs(primaryBlock - fallbackBlock) > 20
+          ) {
+            throw new Error(
+              "Independent RPC providers do not agree on Robinhood testnet"
+            );
+          }
+          NODE
+
+      - name: Write workflow qualification and approval records
+        env:
+          AUTHORIZED_AT: ${{ github.event.repository.updated_at }}
+        run: |
+          echo "ROBINHOOD_QUALIFICATION_PATH=$RUNNER_TEMP/robinhood-testnet-qualification.json" >> "$GITHUB_ENV"
+          echo "ROBINHOOD_APPROVAL_PATH=$RUNNER_TEMP/robinhood-testnet-approval.json" >> "$GITHUB_ENV"
+          node --input-type=module - <<'NODE'
+          import { writeFile } from "node:fs/promises";
+
+          const qualification = {
+            schemaVersion: 1,
+            status: "qualified-testnet",
+            chainId: 46630,
+            caip2: "eip155:46630",
+            sourceCommit: process.env.GITHUB_SHA,
+            deployer:
+              process.env.NAKAMA_ROBINHOOD_TEST_ASSET_EXPECTED_DEPLOYER,
+            testsPassed: true,
+            providers: [
+              { hostname: "robinhood-testnet.drpc.org" },
+              { hostname: "46630.rpc.thirdweb.com" },
+            ],
+            productionEnabled: false,
+          };
+          const approval = {
+            schemaVersion: 1,
+            status: "approved-for-testnet",
+            scope: "robinhood-testnet-only",
+            sourceCommit: process.env.GITHUB_SHA,
+            deployer:
+              process.env.NAKAMA_ROBINHOOD_TEST_ASSET_EXPECTED_DEPLOYER,
+            confirmation:
+              "DEPLOY_IMMUTABLE_NAKAMA_GENERIC_CORE_TO_ROBINHOOD_TESTNET",
+            authorizedBy: process.env.GITHUB_ACTOR,
+            authorizedAt: new Date().toISOString(),
+            workflowRunId: process.env.GITHUB_RUN_ID,
+            productionEnabled: false,
+          };
+          await Promise.all([
+            writeFile(
+              `${process.env.RUNNER_TEMP}/robinhood-testnet-qualification.json`,
+              `${JSON.stringify(qualification, null, 2)}\n`,
+              { flag: "wx", mode: 0o600 }
+            ),
+            writeFile(
+              `${process.env.RUNNER_TEMP}/robinhood-testnet-approval.json`,
+              `${JSON.stringify(approval, null, 2)}\n`,
+              { flag: "wx", mode: 0o600 }
+            ),
+          ]);
+          NODE
+
+      - name: Deploy fixed-supply test settlement asset
+        run: npm run robinhood:generic:testnet:asset:deploy
+
+      - name: Bind test settlement asset
+        run: |
+          node --input-type=module - <<'NODE'
+          import { readFile } from "node:fs/promises";
+
+          const asset = JSON.parse(
+            await readFile(
+              "deployments/robinhood-testnet/test-settlement-asset.pending.json",
+              "utf8"
+            )
+          );
+          const values = {
+            ROBINHOOD_TESTNET_SETTLEMENT_ASSET_ADDRESS: asset.address,
+            ROBINHOOD_TESTNET_SETTLEMENT_ASSET_NAME: asset.name,
+            ROBINHOOD_TESTNET_SETTLEMENT_ASSET_SYMBOL: asset.symbol,
+            ROBINHOOD_TESTNET_SETTLEMENT_ASSET_DECIMALS:
+              String(asset.decimals),
+            ROBINHOOD_TESTNET_SETTLEMENT_ASSET_DEPLOYMENT_TRANSACTION:
+              asset.deploymentTransaction,
+          };
+          const lines = Object.entries(values)
+            .map(([key, value]) => `${key}=${value}`)
+            .join("\n");
+          await import("node:fs/promises").then(({ appendFile }) =>
+            appendFile(process.env.GITHUB_ENV, `${lines}\n`)
+          );
+          NODE
+
+      - name: Verify test settlement asset source
+        run: |
+          npm run robinhood:generic:testnet:verify:blockscout -- \
+            --contract contracts/testnet/NakamaTestUsd.sol:NakamaTestUsd \
+            "$ROBINHOOD_TESTNET_SETTLEMENT_ASSET_ADDRESS" \
+            "$NAKAMA_ROBINHOOD_TEST_ASSET_INITIAL_HOLDER" \
+            "$NAKAMA_ROBINHOOD_TEST_ASSET_INITIAL_SUPPLY_UNITS"
+          npm run robinhood:generic:testnet:verify:sourcify -- \
+            --contract contracts/testnet/NakamaTestUsd.sol:NakamaTestUsd \
+            "$ROBINHOOD_TESTNET_SETTLEMENT_ASSET_ADDRESS" \
+            "$NAKAMA_ROBINHOOD_TEST_ASSET_INITIAL_HOLDER" \
+            "$NAKAMA_ROBINHOOD_TEST_ASSET_INITIAL_SUPPLY_UNITS" \
+            --creation-tx-hash \
+            "$ROBINHOOD_TESTNET_SETTLEMENT_ASSET_DEPLOYMENT_TRANSACTION"
+
+      - name: Prepare reviewed testnet release
+        run: |
+          node scripts/prepare_robinhood_generic_testnet_release.mjs \
+            --asset deployments/robinhood-testnet/test-settlement-asset.pending.json \
+            --qualification "$ROBINHOOD_QUALIFICATION_PATH" \
+            --approval "$ROBINHOOD_APPROVAL_PATH" \
+            --output deployments/robinhood-testnet/generic-core.release.json
+          node --input-type=module - <<'NODE'
+          import { readFile } from "node:fs/promises";
+
+          const release = JSON.parse(
+            await readFile(
+              "deployments/robinhood-testnet/generic-core.release.json",
+              "utf8"
+            )
+          );
+          const lines = [
+            `NAKAMA_ROBINHOOD_GENERIC_TESTNET_QUALIFICATION_SHA256=${release.qualificationReportSha256}`,
+            `NAKAMA_ROBINHOOD_GENERIC_TESTNET_RELEASE_APPROVAL_SHA256=${release.releaseApprovalSha256}`,
+          ];
+          await import("node:fs/promises").then(({ appendFile }) =>
+            appendFile(process.env.GITHUB_ENV, `${lines.join("\n")}\n`)
+          );
+          NODE
+
+      - name: Preflight immutable generic core
+        run: npm run robinhood:generic:testnet:preflight
+
+      - name: Deploy immutable generic core
+        run: npm run robinhood:generic:testnet:deploy
+
+      - name: Bind core deployment addresses
+        run: |
+          node --input-type=module - <<'NODE'
+          import { readFile } from "node:fs/promises";
+
+          const deployment = JSON.parse(
+            await readFile(
+              "deployments/robinhood-testnet/generic-core.pending.json",
+              "utf8"
+            )
+          );
+          const values = {
+            ROBINHOOD_FACTORY_ADDRESS:
+              deployment.liveContracts.factory.address,
+            ROBINHOOD_POLICY_REGISTRY_ADDRESS:
+              deployment.liveContracts.policyRegistry.address,
+            ROBINHOOD_PROTOCOL_ADDRESS:
+              deployment.liveContracts.protocol.address,
+            ROBINHOOD_FACTORY_DEPLOYMENT_TRANSACTION:
+              deployment.deploymentTransaction,
+          };
+          const lines = Object.entries(values)
+            .map(([key, value]) => `${key}=${value}`)
+            .join("\n");
+          await import("node:fs/promises").then(({ appendFile }) =>
+            appendFile(process.env.GITHUB_ENV, `${lines}\n`)
+          );
+          NODE
+
+      - name: Verify immutable core source
+        run: |
+          npm run robinhood:generic:testnet:verify:blockscout -- \
+            --contract contracts/NakamaProtocolFactory.sol:NakamaProtocolFactory \
+            "$ROBINHOOD_FACTORY_ADDRESS"
+          npm run robinhood:generic:testnet:verify:blockscout -- \
+            --contract contracts/NakamaPolicyRegistry.sol:NakamaPolicyRegistry \
+            "$ROBINHOOD_POLICY_REGISTRY_ADDRESS" \
+            "$ROBINHOOD_PROTOCOL_ADDRESS"
+          npm run robinhood:generic:testnet:verify:blockscout -- \
+            --contract contracts/NakamaCoverageProtocol.sol:NakamaCoverageProtocol \
+            "$ROBINHOOD_PROTOCOL_ADDRESS" \
+            "$ROBINHOOD_POLICY_REGISTRY_ADDRESS"
+          npm run robinhood:generic:testnet:verify:sourcify -- \
+            --contract contracts/NakamaProtocolFactory.sol:NakamaProtocolFactory \
+            "$ROBINHOOD_FACTORY_ADDRESS" \
+            --creation-tx-hash "$ROBINHOOD_FACTORY_DEPLOYMENT_TRANSACTION"
+          npm run robinhood:generic:testnet:verify:sourcify -- \
+            --contract contracts/NakamaPolicyRegistry.sol:NakamaPolicyRegistry \
+            "$ROBINHOOD_POLICY_REGISTRY_ADDRESS" \
+            "$ROBINHOOD_PROTOCOL_ADDRESS" \
+            --creation-tx-hash "$ROBINHOOD_FACTORY_DEPLOYMENT_TRANSACTION"
+          npm run robinhood:generic:testnet:verify:sourcify -- \
+            --contract contracts/NakamaCoverageProtocol.sol:NakamaCoverageProtocol \
+            "$ROBINHOOD_PROTOCOL_ADDRESS" \
+            "$ROBINHOOD_POLICY_REGISTRY_ADDRESS" \
+            --creation-tx-hash "$ROBINHOOD_FACTORY_DEPLOYMENT_TRANSACTION"
+
+      - name: Promote disabled testnet runtime
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if npm run robinhood:generic:testnet:promote -- \
+              --deployment deployments/robinhood-testnet/generic-core.pending.json \
+              --runtime-output deployments/robinhood-testnet/generic-core.runtime.json \
+              --evidence-output deployments/robinhood-testnet/generic-core.verification-evidence.json; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 8 ]; then
+              exit 1
+            fi
+            sleep 30
+          done
+
+      - name: Package operator evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: robinhood-testnet-${{ github.sha }}-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/robinhood-testnet-qualification.json
+            ${{ runner.temp }}/robinhood-testnet-approval.json
+            deployments/robinhood-testnet/test-settlement-asset.broadcast.json
+            deployments/robinhood-testnet/test-settlement-asset.pending.json
+            deployments/robinhood-testnet/generic-core.release.json
+            deployments/robinhood-testnet/generic-core.broadcast.json
+            deployments/robinhood-testnet/generic-core.pending.json
+            deployments/robinhood-testnet/generic-core.runtime.json
+            deployments/robinhood-testnet/generic-core.verification-evidence.json

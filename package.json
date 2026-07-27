@@ -32,6 +32,7 @@
     "robinhood:deploy:mainnet:plan": "npm run robinhood:contract:check && node scripts/plan_robinhood_mainnet.mjs",
     "robinhood:deploy:testnet": "npm run robinhood:contract:check && hardhat run scripts/deploy_robinhood_testnet.ts --network robinhoodTestnet --build-profile production",
     "robinhood:generic:testnet:asset:deploy": "npm run ethereum:contract:check && hardhat run scripts/deploy_robinhood_test_settlement_asset.ts --network robinhoodTestnet --build-profile production",
+    "robinhood:generic:testnet:release:prepare": "node scripts/prepare_robinhood_generic_testnet_release.mjs",
     "robinhood:generic:testnet:preflight": "npm run ethereum:contract:check && node scripts/robinhood_generic_testnet_preflight.mjs",
     "robinhood:generic:testnet:deploy": "npm run ethereum:contract:check && hardhat run scripts/deploy_robinhood_generic_testnet.ts --network robinhoodTestnet --build-profile production",
     "robinhood:generic:testnet:verify:blockscout": "hardhat verify blockscout --network robinhoodTestnet --build-profile production",
