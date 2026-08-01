@@ -457,7 +457,12 @@ export function sourcifyLookupUrl(contractAddress, chainId = 1) {
 
 export async function verifySourcifyExactMatch(
   contractAddress,
-  { fetchImpl = fetch, chainId = 1, chainLabel = "Ethereum mainnet" } = {}
+  {
+    fetchImpl = fetch,
+    chainId = 1,
+    chainLabel = "Ethereum mainnet",
+    allowUnavailableCreationMatch = false,
+  } = {}
 ) {
   const expectedAddress = address(contractAddress, "Sourcify contract address");
   const verificationUrl = sourcifyLookupUrl(expectedAddress, chainId);
@@ -480,10 +485,17 @@ export async function verifySourcifyExactMatch(
     result.runtimeMatch === "exact_match",
     "Sourcify runtime is not an exact match"
   );
-  requireCondition(
-    result.creationMatch === "exact_match",
-    "Sourcify creation bytecode is not an exact match"
-  );
+  if (allowUnavailableCreationMatch) {
+    requireCondition(
+      result.creationMatch === "exact_match" || result.creationMatch === null,
+      "Sourcify creation bytecode is neither an exact match nor unavailable"
+    );
+  } else {
+    requireCondition(
+      result.creationMatch === "exact_match",
+      "Sourcify creation bytecode is not an exact match"
+    );
+  }
   requireCondition(
     typeof result.verifiedAt === "string" &&
       Number.isFinite(Date.parse(result.verifiedAt)),

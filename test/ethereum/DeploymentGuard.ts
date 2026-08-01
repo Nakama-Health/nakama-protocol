@@ -1102,6 +1102,46 @@ describe("Ethereum mainnet deployment guard", function () {
         fetchImpl: partialFetch,
       })
     ).to.be.rejectedWith("creation bytecode is not an exact match");
+    await expect(
+      verifySourcifyExactMatch(fixture.addresses.protocol, {
+        fetchImpl: partialFetch,
+        allowUnavailableCreationMatch: true,
+      })
+    ).to.be.rejectedWith(
+      "creation bytecode is neither an exact match nor unavailable"
+    );
+
+    const unavailableCreationFetch = (async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          chainId: "46630",
+          address: fixture.addresses.protocol,
+          creationMatch: null,
+          runtimeMatch: "exact_match",
+          verifiedAt: "2026-08-01T00:00:00.000Z",
+          matchId: "factory-created",
+        }),
+      } as Response)) as typeof fetch;
+    const factoryCreatedEvidence = await verifySourcifyExactMatch(
+      fixture.addresses.protocol,
+      {
+        fetchImpl: unavailableCreationFetch,
+        chainId: 46630,
+        chainLabel: "Robinhood Chain Testnet",
+        allowUnavailableCreationMatch: true,
+      }
+    );
+    expect(factoryCreatedEvidence.creationMatch).to.equal(null);
+    expect(factoryCreatedEvidence.runtimeMatch).to.equal("exact_match");
+    await expect(
+      verifySourcifyExactMatch(fixture.addresses.protocol, {
+        fetchImpl: unavailableCreationFetch,
+        chainId: 46630,
+        chainLabel: "Robinhood Chain Testnet",
+      })
+    ).to.be.rejectedWith("creation bytecode is not an exact match");
   });
 
   it("builds a final schema-v3 manifest from three Sourcify records and four SDK ABIs", async function () {

@@ -149,6 +149,10 @@ const sourceVerification = Object.fromEntries(
         verifySourcifyExactMatch(contract.address, {
           chainId: Number(ROBINHOOD_GENERIC_TESTNET_CHAIN_ID),
           chainLabel: "Robinhood Chain Testnet",
+          // Sourcify cannot derive top-level creation input for contracts
+          // created internally by the factory. Runtime still must match exactly.
+          allowUnavailableCreationMatch:
+            contract.deploymentKind === "factory-create",
         }),
       ]);
       return [role, { blockscout, sourcify }];
