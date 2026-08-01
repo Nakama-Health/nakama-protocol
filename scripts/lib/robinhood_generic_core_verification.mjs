@@ -28,28 +28,43 @@ function requireCondition(condition, message) {
 }
 
 async function jsonRpc(rpcUrl, method, params, fetchImpl) {
-  const response = await fetchImpl(rpcUrl, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-  });
-  if (!response.ok) {
-    throw new Error(
-      `Robinhood testnet RPC ${method} failed with HTTP ${response.status}`
-    );
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const response = await fetchImpl(rpcUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    });
+    if (
+      !response.ok &&
+      [429, 502, 503, 504].includes(response.status) &&
+      attempt < 4
+    ) {
+      const retryAfterSeconds = Number(response.headers?.get?.("retry-after"));
+      const delayMs = Number.isFinite(retryAfterSeconds)
+        ? Math.max(250, retryAfterSeconds * 1_000)
+        : 250 * 2 ** attempt;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      continue;
+    }
+    if (!response.ok) {
+      throw new Error(
+        `Robinhood testnet RPC ${method} failed with HTTP ${response.status}`
+      );
+    }
+    const payload = await response.json();
+    if (payload?.error) {
+      throw new Error(
+        `Robinhood testnet RPC ${method} failed: ${
+          payload.error.message ?? "unknown RPC error"
+        }`
+      );
+    }
+    if (payload?.result === undefined) {
+      throw new Error(`Robinhood testnet RPC ${method} returned no result`);
+    }
+    return payload.result;
   }
-  const payload = await response.json();
-  if (payload?.error) {
-    throw new Error(
-      `Robinhood testnet RPC ${method} failed: ${
-        payload.error.message ?? "unknown RPC error"
-      }`
-    );
-  }
-  if (payload?.result === undefined) {
-    throw new Error(`Robinhood testnet RPC ${method} returned no result`);
-  }
-  return payload.result;
+  throw new Error(`Robinhood testnet RPC ${method} exhausted retries`);
 }
 
 function runtimeBytecodeSha256(bytecode, field) {
@@ -84,67 +99,52 @@ export async function verifyRobinhoodTestnetSettlementAsset(
     /^0x[0-9a-fA-F]{64}$/.test(expectedAsset.deploymentTransaction),
     "Settlement-asset deployment transaction must be a transaction hash"
   );
-  const [
-    chainId,
-    runtimeCode,
-    nameRaw,
-    symbolRaw,
-    decimalsRaw,
-    deploymentTransaction,
-    deploymentReceipt,
-  ] =
-    await Promise.all([
-      jsonRpc(rpcUrl, "eth_chainId", [], fetchImpl),
-      jsonRpc(rpcUrl, "eth_getCode", [address, "latest"], fetchImpl),
-      jsonRpc(
-        rpcUrl,
-        "eth_call",
-        [
-          {
-            to: address,
-            data: tokenInterface.encodeFunctionData("name"),
-          },
-          "latest",
-        ],
-        fetchImpl
-      ),
-      jsonRpc(
-        rpcUrl,
-        "eth_call",
-        [
-          {
-            to: address,
-            data: tokenInterface.encodeFunctionData("symbol"),
-          },
-          "latest",
-        ],
-        fetchImpl
-      ),
-      jsonRpc(
-        rpcUrl,
-        "eth_call",
-        [
-          {
-            to: address,
-            data: tokenInterface.encodeFunctionData("decimals"),
-          },
-          "latest",
-        ],
-        fetchImpl
-      ),
-      jsonRpc(
-        rpcUrl,
-        "eth_getTransactionByHash",
-        [expectedAsset.deploymentTransaction],
-        fetchImpl
-      ),
-      jsonRpc(
-        rpcUrl,
-        "eth_getTransactionReceipt",
-        [expectedAsset.deploymentTransaction],
-        fetchImpl
-      ),
-    ]);
+  const chainId = await jsonRpc(rpcUrl, "eth_chainId", [], fetchImpl);
+  const runtimeCode = await jsonRpc(
+    rpcUrl,
+    "eth_getCode",
+    [address, "latest"],
+    fetchImpl
+  );
+  const nameRaw = await jsonRpc(
+    rpcUrl,
+    "eth_call",
+    [
+      { to: address, data: tokenInterface.encodeFunctionData("name") },
+      "latest",
+    ],
+    fetchImpl
+  );
+  const symbolRaw = await jsonRpc(
+    rpcUrl,
+    "eth_call",
+    [
+      { to: address, data: tokenInterface.encodeFunctionData("symbol") },
+      "latest",
+    ],
+    fetchImpl
+  );
+  const decimalsRaw = await jsonRpc(
+    rpcUrl,
+    "eth_call",
+    [
+      { to: address, data: tokenInterface.encodeFunctionData("decimals") },
+      "latest",
+    ],
+    fetchImpl
+  );
+  const deploymentTransaction = await jsonRpc(
+    rpcUrl,
+    "eth_getTransactionByHash",
+    [expectedAsset.deploymentTransaction],
+    fetchImpl
+  );
+  const deploymentReceipt = await jsonRpc(
+    rpcUrl,
+    "eth_getTransactionReceipt",
+    [expectedAsset.deploymentTransaction],
+    fetchImpl
+  );
   requireCondition(
     BigInt(chainId) === ROBINHOOD_GENERIC_TESTNET_CHAIN_ID,
     "Settlement-asset RPC is not Robinhood testnet"
@@ -202,22 +202,20 @@ export async function observeRobinhoodRuntimeBytecode(
     BigInt(chainId) === ROBINHOOD_GENERIC_TESTNET_CHAIN_ID,
     "Runtime-bytecode RPC is not Robinhood testnet"
   );
-  return Object.fromEntries(
-    await Promise.all(
-      ETHEREUM_LIVE_ROLES.map(async (role) => {
-        const runtimeCode = await jsonRpc(
-          rpcUrl,
-          "eth_getCode",
-          [getAddress(liveContracts[role].address), "latest"],
-          fetchImpl
-        );
-        return [
-          role,
-          runtimeBytecodeSha256(runtimeCode, `${role} contract`),
-        ];
-      })
-    )
-  );
+  const observations = {};
+  for (const role of ETHEREUM_LIVE_ROLES) {
+    const runtimeCode = await jsonRpc(
+      rpcUrl,
+      "eth_getCode",
+      [getAddress(liveContracts[role].address), "latest"],
+      fetchImpl
+    );
+    observations[role] = runtimeBytecodeSha256(
+      runtimeCode,
+      `${role} contract`
+    );
+  }
+  return observations;
 }
 
 export function requireMatchingRuntimeObservations(

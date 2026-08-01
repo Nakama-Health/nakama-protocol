@@ -90,33 +90,32 @@ const attestationOptions = {
     ROBINHOOD_GENERIC_TESTNET_MINIMUM_FINAL_CONFIRMATIONS,
   chainLabel: "Robinhood Chain Testnet",
 };
-const [
-  primaryAttestation,
-  fallbackAttestation,
-  primaryRuntime,
-  fallbackRuntime,
-  primarySettlementAsset,
-  fallbackSettlementAsset,
-] = await Promise.all([
-  attestEvmFactoryDeployment(deployment, release, {
-    rpcUrl: primaryRpcUrl,
-    ...attestationOptions,
-  }),
-  attestEvmFactoryDeployment(deployment, release, {
-    rpcUrl: fallbackRpcUrl,
-    ...attestationOptions,
-  }),
-  observeRobinhoodRuntimeBytecode(primaryRpcUrl, deployment.liveContracts),
-  observeRobinhoodRuntimeBytecode(fallbackRpcUrl, deployment.liveContracts),
-  verifyRobinhoodTestnetSettlementAsset(
-    primaryRpcUrl,
-    deployment.settlementAsset
-  ),
-  verifyRobinhoodTestnetSettlementAsset(
-    fallbackRpcUrl,
-    deployment.settlementAsset
-  ),
-]);
+const primaryAttestation = await attestEvmFactoryDeployment(
+  deployment,
+  release,
+  { rpcUrl: primaryRpcUrl, ...attestationOptions }
+);
+const fallbackAttestation = await attestEvmFactoryDeployment(
+  deployment,
+  release,
+  { rpcUrl: fallbackRpcUrl, ...attestationOptions }
+);
+const primaryRuntime = await observeRobinhoodRuntimeBytecode(
+  primaryRpcUrl,
+  deployment.liveContracts
+);
+const fallbackRuntime = await observeRobinhoodRuntimeBytecode(
+  fallbackRpcUrl,
+  deployment.liveContracts
+);
+const primarySettlementAsset = await verifyRobinhoodTestnetSettlementAsset(
+  primaryRpcUrl,
+  deployment.settlementAsset
+);
+const fallbackSettlementAsset = await verifyRobinhoodTestnetSettlementAsset(
+  fallbackRpcUrl,
+  deployment.settlementAsset
+);
 if (
   robinhoodDeploymentConsensusFingerprint(primaryAttestation) !==
   robinhoodDeploymentConsensusFingerprint(fallbackAttestation)

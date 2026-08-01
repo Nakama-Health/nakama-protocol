@@ -317,11 +317,11 @@ export async function attestEvmFactoryDeployment(
   );
   requireCondition(
     deploymentBlock <= safeBlockNumber,
-    `Deployment block has not reached the ${chainLabel} safe head`
+    `Deployment block ${deploymentBlock} has not reached the ${chainLabel} safe head ${safeBlockNumber}`
   );
   requireCondition(
     deploymentBlock <= finalizedBlockNumber,
-    `Deployment block has not reached the ${chainLabel} finalized head`
+    `Deployment block ${deploymentBlock} has not reached the ${chainLabel} finalized head ${finalizedBlockNumber}`
   );
   const confirmationCount = latestBlockNumber - deploymentBlock + 1n;
   requireCondition(

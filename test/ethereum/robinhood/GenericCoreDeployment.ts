@@ -358,10 +358,19 @@ describe("Robinhood generic-core testnet deployment gates", function () {
       classification: "test-only-mock",
       canonical: false,
     };
+    let requestCount = 0;
     const fetchImpl = async (
       _url: string | URL | Request,
       init?: RequestInit
     ) => {
+      requestCount += 1;
+      if (requestCount === 1) {
+        return {
+          ok: false,
+          status: 429,
+          headers: { get: () => null },
+        } as unknown as Response;
+      }
       const request = JSON.parse(String(init?.body));
       let result: unknown;
       if (request.method === "eth_chainId") result = "0xb626";
@@ -404,6 +413,7 @@ describe("Robinhood generic-core testnet deployment gates", function () {
     expect(observed.runtimeBytecodeSha256).to.equal(
       createHash("sha256").update(Buffer.from("6000", "hex")).digest("hex")
     );
+    expect(requestCount).to.equal(8);
   });
 
   it("requires complete Blockscout verification and deploys fixed test supply", async function () {
