@@ -29,6 +29,7 @@ import {
   validateRobinhoodRuntimeManifest,
 } from "./lib/robinhood_generic_core_manifest.mjs";
 import {
+  buildRobinhoodGenericCorePromotionConfig,
   ROBINHOOD_GENERIC_TESTNET_RELEASE_PATH,
   runRobinhoodGenericCoreReleasePreflight,
 } from "./lib/robinhood_generic_core_release.mjs";
@@ -74,10 +75,8 @@ const releaseManifest = JSON.parse(
   )
 );
 const release = await runRobinhoodGenericCoreReleasePreflight({
-  sourceCommit: releaseManifest.sourceCommit,
+  ...buildRobinhoodGenericCorePromotionConfig(releaseManifest),
   expectedDeployer: getAddress(releaseManifest.expectedDeployer),
-  qualificationReportSha256: releaseManifest.qualificationReportSha256,
-  releaseApprovalSha256: releaseManifest.releaseApprovalSha256,
 });
 const deployment = validateRobinhoodGenericCoreIntermediate(
   JSON.parse(await readFile(deploymentPath, "utf8")),

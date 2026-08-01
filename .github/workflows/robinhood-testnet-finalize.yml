@@ -1,0 +1,311 @@
+name: Finalize Robinhood Testnet Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: >-
+          Enter FINALIZE_NAKAMA_ROBINHOOD_TESTNET_FROM_RUN_30684885501
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: robinhood-testnet-deployment
+  cancel-in-progress: false
+
+jobs:
+  recover-and-finalize:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      inputs.confirmation == 'FINALIZE_NAKAMA_ROBINHOOD_TESTNET_FROM_RUN_30684885501'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: robinhood-testnet
+    env:
+      RECOVERY_RUN_ID: "30684885501"
+      DEPLOYED_SOURCE_COMMIT: 8de29078edb5444dd0e42e747b2f4cf7564b6a7d
+      EXPECTED_DEPLOYER: 0x19700e85E2D71ABE9614e5b9113d4F9D405ea8D3
+      EXPECTED_SIGNER_NONCE: "2"
+      CORE_PENDING_SHA256: 4f3940feb80030c3e10c6945c3ed75751a7cc22f7262a19b5bf92c24f2508aef
+      CORE_BROADCAST_SHA256: bccde82c07972aa317cfe635947e8e0eaed93d40620056d10135622257f232d7
+      CORE_RELEASE_SHA256: 1a05cd00184cf76c3a796be56725253a9607cfc6ca13de83eaf3b997c72b61e9
+      ASSET_PENDING_SHA256: 3ebbd6a65d9d1af47fd313e5da6593bd44ff4308aef82be1683cf6f692ebae5c
+      ASSET_BROADCAST_SHA256: 8da6ccaa1b8e8e369b625198fb6d1e01f964f6508880cf0ed57c4465ae931a9c
+      QUALIFICATION_SHA256: 08778b6ee3333c64843028720c8aef2bd9a7d36b168a335644848d8df78b0fff
+      APPROVAL_SHA256: 5cfbdb372bd0596a547310fc92746f8b9695e636571cd8cc7f7b76b0f36b9a55
+      ROBINHOOD_TESTNET_RPC_URL: ${{ secrets.ROBINHOOD_TESTNET_RPC_URL }}
+      ROBINHOOD_TESTNET_RPC_FALLBACK_URL: ${{ secrets.ROBINHOOD_TESTNET_RPC_FALLBACK_URL }}
+      ROBINHOOD_TESTNET_SETTLEMENT_ASSET_ADDRESS: 0xB4bF6791bb7a3125E5e62BA0e5481247adA54C18
+      ROBINHOOD_TESTNET_SETTLEMENT_ASSET_NAME: Nakama Test USD
+      ROBINHOOD_TESTNET_SETTLEMENT_ASSET_SYMBOL: tUSDG
+      ROBINHOOD_TESTNET_SETTLEMENT_ASSET_DECIMALS: "6"
+      ROBINHOOD_TESTNET_SETTLEMENT_ASSET_DEPLOYMENT_TRANSACTION: 0xc71133ca2ba9c1b3e6d020541ba707d93254fe5e65f72daa8359ce376afa6b58
+
+    steps:
+      - name: Check out exact deployed source
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          fetch-depth: 0
+          ref: ${{ env.DEPLOYED_SOURCE_COMMIT }}
+
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22.13.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Requalify exact source and providers
+        run: |
+          test -n "$ROBINHOOD_TESTNET_RPC_URL"
+          test -n "$ROBINHOOD_TESTNET_RPC_FALLBACK_URL"
+          test "$ROBINHOOD_TESTNET_RPC_URL" != "$ROBINHOOD_TESTNET_RPC_FALLBACK_URL"
+          test "$(git rev-parse HEAD)" = "$DEPLOYED_SOURCE_COMMIT"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          npm run ethereum:contract:check
+          npm run robinhood:test
+
+      - name: Recover exact deployment evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/recovery"
+          gh run download "$RECOVERY_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir "$RUNNER_TEMP/recovery"
+          find_one() {
+            find "$RUNNER_TEMP/recovery" -type f -name "$1" -print -quit
+          }
+          core_pending="$(find_one generic-core.pending.json)"
+          core_broadcast="$(find_one generic-core.broadcast.json)"
+          core_release="$(find_one generic-core.release.json)"
+          asset_pending="$(find_one test-settlement-asset.pending.json)"
+          asset_broadcast="$(find_one test-settlement-asset.broadcast.json)"
+          qualification="$(find_one robinhood-testnet-qualification.json)"
+          approval="$(find_one robinhood-testnet-approval.json)"
+          test -n "$core_pending"
+          test -n "$core_broadcast"
+          test -n "$core_release"
+          test -n "$asset_pending"
+          test -n "$asset_broadcast"
+          test -n "$qualification"
+          test -n "$approval"
+          echo "$CORE_PENDING_SHA256  $core_pending" | sha256sum --check -
+          echo "$CORE_BROADCAST_SHA256  $core_broadcast" | sha256sum --check -
+          echo "$CORE_RELEASE_SHA256  $core_release" | sha256sum --check -
+          echo "$ASSET_PENDING_SHA256  $asset_pending" | sha256sum --check -
+          echo "$ASSET_BROADCAST_SHA256  $asset_broadcast" | sha256sum --check -
+          echo "$QUALIFICATION_SHA256  $qualification" | sha256sum --check -
+          echo "$APPROVAL_SHA256  $approval" | sha256sum --check -
+          mkdir -p deployments/robinhood-testnet
+          cp "$core_pending" deployments/robinhood-testnet/generic-core.pending.json
+          cp "$core_broadcast" deployments/robinhood-testnet/generic-core.broadcast.json
+          cp "$core_release" deployments/robinhood-testnet/generic-core.release.json
+          cp "$asset_pending" deployments/robinhood-testnet/test-settlement-asset.pending.json
+          cp "$asset_broadcast" deployments/robinhood-testnet/test-settlement-asset.broadcast.json
+          cp "$qualification" "$RUNNER_TEMP/robinhood-testnet-qualification.json"
+          cp "$approval" "$RUNNER_TEMP/robinhood-testnet-approval.json"
+
+      - name: Validate recovered deployment and finality
+        run: |
+          node --input-type=module - <<'NODE'
+          import { readFile } from "node:fs/promises";
+          import { JsonRpcProvider, getAddress } from "ethers";
+
+          const deployment = JSON.parse(
+            await readFile(
+              "deployments/robinhood-testnet/generic-core.pending.json",
+              "utf8"
+            )
+          );
+          const expectedDeployer = getAddress(process.env.EXPECTED_DEPLOYER);
+          if (
+            deployment.schemaVersion !== 3 ||
+            deployment.status !== "deployed-unverified" ||
+            deployment.chainId !== 46630 ||
+            deployment.caip2 !== "eip155:46630" ||
+            deployment.sourceCommit !== process.env.DEPLOYED_SOURCE_COMMIT ||
+            getAddress(deployment.deployer) !== expectedDeployer ||
+            deployment.verified !== false ||
+            deployment.verificationEvidenceSha256 !== null
+          ) {
+            throw new Error("Recovered core evidence is not the guarded testnet deployment");
+          }
+          const expectedNonce = Number(process.env.EXPECTED_SIGNER_NONCE);
+          const liveContracts = Object.values(deployment.liveContracts);
+          if (liveContracts.length !== 3) {
+            throw new Error("Recovered core evidence must contain exactly three live contracts");
+          }
+          const providers = [
+            new JsonRpcProvider(process.env.ROBINHOOD_TESTNET_RPC_URL, undefined, {
+              batchMaxCount: 1,
+            }),
+            new JsonRpcProvider(
+              process.env.ROBINHOOD_TESTNET_RPC_FALLBACK_URL,
+              undefined,
+              { batchMaxCount: 1 }
+            ),
+          ];
+          const states = await Promise.all(
+            providers.map(async (provider) => {
+              const [network, receipt, latestNonce, pendingNonce, latestBlock, codes] =
+                await Promise.all([
+                  provider.getNetwork(),
+                  provider.getTransactionReceipt(deployment.deploymentTransaction),
+                  provider.getTransactionCount(expectedDeployer, "latest"),
+                  provider.getTransactionCount(expectedDeployer, "pending"),
+                  provider.getBlockNumber(),
+                  Promise.all(
+                    liveContracts.map((contract) => provider.getCode(contract.address))
+                  ),
+                ]);
+              return { network, receipt, latestNonce, pendingNonce, latestBlock, codes };
+            })
+          );
+          for (const state of states) {
+            if (
+              state.network.chainId !== 46630n ||
+              state.receipt?.status !== 1 ||
+              state.receipt.hash.toLowerCase() !==
+                deployment.deploymentTransaction.toLowerCase() ||
+              getAddress(state.receipt.from) !== expectedDeployer ||
+              getAddress(state.receipt.contractAddress) !==
+                getAddress(deployment.liveContracts.factory.address) ||
+              state.latestNonce !== expectedNonce ||
+              state.pendingNonce !== expectedNonce ||
+              state.latestBlock - state.receipt.blockNumber < 20 ||
+              state.codes.some((code) => code === "0x")
+            ) {
+              throw new Error(
+                "Independent providers do not agree on the recovered deployment or finality"
+              );
+            }
+          }
+          if (
+            states[0].receipt.blockHash !== states[1].receipt.blockHash ||
+            JSON.stringify(states[0].codes) !== JSON.stringify(states[1].codes)
+          ) {
+            throw new Error("Independent providers disagree on deployed code");
+          }
+          NODE
+
+      - name: Finalize disabled runtime with patched tooling
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/recovery-tooling" "$GITHUB_SHA"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/recovery-tooling/node_modules"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if node "$RUNNER_TEMP/recovery-tooling/scripts/promote_robinhood_generic_testnet_manifest.mjs" \
+              --deployment deployments/robinhood-testnet/generic-core.pending.json \
+              --runtime-output deployments/robinhood-testnet/generic-core.runtime.json \
+              --evidence-output deployments/robinhood-testnet/generic-core.verification-evidence.json; then
+              break
+            fi
+            test "$attempt" -lt 8
+            rm -f \
+              deployments/robinhood-testnet/generic-core.runtime.json \
+              deployments/robinhood-testnet/generic-core.verification-evidence.json
+            sleep 30
+          done
+
+      - name: Validate disabled runtime outputs
+        run: |
+          node --input-type=module - <<'NODE'
+          import { createHash } from "node:crypto";
+          import { readFile } from "node:fs/promises";
+
+          const runtimeBytes = await readFile(
+            "deployments/robinhood-testnet/generic-core.runtime.json",
+            "utf8"
+          );
+          const runtime = JSON.parse(runtimeBytes);
+          const evidence = JSON.parse(
+            await readFile(
+              "deployments/robinhood-testnet/generic-core.verification-evidence.json",
+              "utf8"
+            )
+          );
+          if (
+            runtime.schemaVersion !== 3 ||
+            runtime.chainId !== "eip155:46630" ||
+            evidence.status !== "verified-testnet" ||
+            evidence.chainId !== 46630 ||
+            evidence.caip2 !== "eip155:46630" ||
+            evidence.sourceCommit !== process.env.DEPLOYED_SOURCE_COMMIT ||
+            evidence.productionEnabled !== false ||
+            evidence.providers?.length !== 2 ||
+            evidence.providers[0].providerHostname ===
+              evidence.providers[1].providerHostname
+          ) {
+            throw new Error("Finalized evidence is not a disabled two-provider testnet runtime");
+          }
+          const runtimeSha256 = createHash("sha256")
+            .update(runtimeBytes)
+            .digest("hex");
+          if (runtimeSha256 !== evidence.runtimeManifestSha256) {
+            throw new Error("Runtime manifest digest does not match verification evidence");
+          }
+          NODE
+
+      - name: Record finalization provenance
+        if: always()
+        run: |
+          node --input-type=module - <<'NODE'
+          import { writeFile } from "node:fs/promises";
+
+          const provenance = {
+            schemaVersion: 1,
+            status: "finalized-recovered-testnet-deployment",
+            deploymentWorkflowRunId: process.env.RECOVERY_RUN_ID,
+            sourceCommit: process.env.DEPLOYED_SOURCE_COMMIT,
+            finalizationToolingCommit: process.env.GITHUB_SHA,
+            evidenceSha256: {
+              corePending: process.env.CORE_PENDING_SHA256,
+              coreBroadcast: process.env.CORE_BROADCAST_SHA256,
+              coreRelease: process.env.CORE_RELEASE_SHA256,
+              assetPending: process.env.ASSET_PENDING_SHA256,
+              assetBroadcast: process.env.ASSET_BROADCAST_SHA256,
+              qualification: process.env.QUALIFICATION_SHA256,
+              approval: process.env.APPROVAL_SHA256,
+            },
+            providers: [
+              { hostname: new URL(process.env.ROBINHOOD_TESTNET_RPC_URL).hostname },
+              {
+                hostname: new URL(
+                  process.env.ROBINHOOD_TESTNET_RPC_FALLBACK_URL
+                ).hostname,
+              },
+            ],
+            productionEnabled: false,
+          };
+          await writeFile(
+            `${process.env.RUNNER_TEMP}/robinhood-testnet-finalization.json`,
+            `${JSON.stringify(provenance, null, 2)}\n`,
+            { flag: "wx", mode: 0o600 }
+          );
+          NODE
+
+      - name: Package final operator evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: robinhood-testnet-finalization-${{ github.sha }}-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/robinhood-testnet-qualification.json
+            ${{ runner.temp }}/robinhood-testnet-approval.json
+            ${{ runner.temp }}/robinhood-testnet-finalization.json
+            deployments/robinhood-testnet/test-settlement-asset.broadcast.json
+            deployments/robinhood-testnet/test-settlement-asset.pending.json
+            deployments/robinhood-testnet/generic-core.release.json
+            deployments/robinhood-testnet/generic-core.broadcast.json
+            deployments/robinhood-testnet/generic-core.pending.json
+            deployments/robinhood-testnet/generic-core.runtime.json
+            deployments/robinhood-testnet/generic-core.verification-evidence.json

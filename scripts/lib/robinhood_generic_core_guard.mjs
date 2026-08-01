@@ -330,6 +330,11 @@ export function validateRobinhoodGenericTestnetReleaseManifest(
     deploymentTransaction:
       manifest.settlementAsset.deploymentTransaction?.toLowerCase(),
   };
+  if (!config.settlementAsset) {
+    throw new Error(
+      "Robinhood testnet release validation requires the configured reviewed settlement asset"
+    );
+  }
   if (
     approvedSettlementAsset.contractName !==
       config.settlementAsset.contractName ||

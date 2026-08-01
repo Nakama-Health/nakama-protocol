@@ -18,6 +18,9 @@ import {
   validateRobinhoodRuntimeManifest,
 } from "../../../scripts/lib/robinhood_generic_core_manifest.mjs";
 import {
+  buildRobinhoodGenericCorePromotionConfig,
+} from "../../../scripts/lib/robinhood_generic_core_release.mjs";
+import {
   verifyRobinhoodBlockscoutSource,
   verifyRobinhoodTestnetSettlementAsset,
 } from "../../../scripts/lib/robinhood_generic_core_verification.mjs";
@@ -280,6 +283,17 @@ describe("Robinhood generic-core testnet deployment gates", function () {
         { contracts, protocolArtifactSha256: "d".repeat(64) }
       )
     ).to.throw("reviewed test token");
+    expect(
+      buildRobinhoodGenericCorePromotionConfig(manifest, safeEnvironment)
+        .settlementAsset
+    ).to.deep.equal(config.settlementAsset);
+    expect(() =>
+      validateRobinhoodGenericTestnetReleaseManifest(
+        { ...config, settlementAsset: undefined },
+        manifest,
+        { contracts, protocolArtifactSha256: "d".repeat(64) }
+      )
+    ).to.throw("configured reviewed settlement asset");
 
     const runtime = validateRobinhoodGenericTestnetRuntime(config, {
       chainId: 46630n,
